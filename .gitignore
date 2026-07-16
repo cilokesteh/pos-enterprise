@@ -1,16 +1,1 @@
-# Dependencies / env
-.env
-.env.*
-!.env.example
-node_modules/
-.venv/
-__pycache__/
-
-# OS / editor
-.DS_Store
-*.log
-.idea/
-.vscode/
-
-# Local overrides (keep secrets out of git)
-config.local.js
+node_modules

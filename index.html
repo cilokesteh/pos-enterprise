@@ -1169,18 +1169,23 @@ async function saveUser() {
   const role = document.getElementById('u-role').value;
   const branchId = document.getElementById('u-branch').value || null;
   if (!name || !email || !password) return alert('Lengkapi data user');
-  // Note: creating Auth users client-side requires secondary app or admin SDK.
-  // We store profile in Firestore; create Auth user via Firebase Console or Cloud Function.
+  if (password.length < 6) return alert('Password minimal 6 karakter');
   try {
+    const btn = document.querySelector('#user-modal .btn-primary');
+    btn.disabled = true; btn.textContent = 'Menyimpan…';
+    // Save profile + password → Cloud Function creates Auth user
     await db.collection(col('users')).add({
-      name, email, role, branchId, createdAt: Date.now(),
-      note: 'Buat akun Auth di Firebase Console dengan email yang sama',
+      name, email, password, role, branchId, createdAt: Date.now(),
     });
     await audit('user.create', { email, role });
     document.getElementById('user-modal').classList.add('hidden');
-    alert('Profil user disimpan. Buat akun Authentication di Firebase Console untuk email: ' + email);
+    alert(`✅ User ${email} dibuat. Akun Auth akan aktif dalam 1-2 detik.`);
     loadUsers();
   } catch (e) { alert(e.message); }
+  finally {
+    const btn = document.querySelector('#user-modal .btn-primary');
+    btn.disabled = false; btn.textContent = 'Simpan';
+  }
 }
 
 function loadUsers() {
