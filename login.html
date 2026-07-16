@@ -19,16 +19,18 @@
   .btn { background: var(--accent, #7170ff); color: #fff; border-radius: 6px; font-weight: 500; transition: background .15s; }
   .btn:hover { filter: brightness(1.08); }
   .btn:disabled { opacity: .6; cursor: not-allowed; }
+  .btn-ghost { background: transparent; border: 1px solid rgba(255,255,255,0.12); color: #d0d6e0; border-radius: 6px; font-weight: 500; }
+  .btn-ghost:hover { background: rgba(255,255,255,0.04); }
   .label { color: #8a8f98; transition: color .2s; }
   .sub { color: #8a8f98; transition: color .2s; }
   .foot { color: #62666d; transition: color .2s; }
-  /* light overrides */
-  .dark-mode body { background: #f3f4f6; color: #111; }
-  .dark-mode .card { background: #fff; border-color: rgba(0,0,0,0.12); }
-  .dark-mode .input { background: #fff; border-color: rgba(0,0,0,0.12); color: #111; }
-  .dark-mode .label { color: #6b7280; }
-  .dark-mode .sub { color: #6b7280; }
-  .dark-mode .foot { color: #9ca3af; }
+  body.light-mode { background: #f3f4f6; color: #111; }
+  body.light-mode .card { background: #fff; border-color: rgba(0,0,0,0.12); }
+  body.light-mode .input { background: #fff; border-color: rgba(0,0,0,0.12); color: #111; }
+  body.light-mode .label { color: #6b7280; }
+  body.light-mode .sub { color: #6b7280; }
+  body.light-mode .foot { color: #9ca3af; }
+  body.light-mode .btn-ghost { border-color: rgba(0,0,0,0.12); color: #374151; }
   #theme-toggle { position: fixed; top: 12px; right: 12px; z-index: 100; cursor: pointer; border: 1px solid rgba(255,255,255,0.12); border-radius: 8px; background: rgba(15,16,17,0.9); backdrop-filter: blur(8px); width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; color: #8a8f98; transition: background .2s, color .2s, border-color .2s; }
   #theme-toggle:hover { border-color: rgba(255,255,255,0.25); }
   body.light-mode #theme-toggle { background: rgba(255,255,255,0.9); border-color: rgba(0,0,0,0.12); color: #374151; }
@@ -63,17 +65,20 @@
         <button type="submit" id="login-btn" class="btn w-full py-3 text-sm mt-2">
           Login
         </button>
+        <button type="button" id="demo-btn" class="btn-ghost w-full py-3 text-sm">
+          Masuk Demo (tanpa login)
+        </button>
       </form>
       <div id="error" class="hidden mt-4 text-center text-sm" style="color:#f87171"></div>
+      <div id="cfg-hint" class="hidden mt-3 text-center text-[11px]" style="color:#8a8f98"></div>
     </div>
 
     <p class="foot text-center text-[11px] mt-6">
-      v1.0 enterprise · Buat user di Firebase Authentication
+      v1.0 enterprise · Demo: index.html?demo=1
     </p>
   </div>
 
 <script>
-// Theme toggle
 document.addEventListener('DOMContentLoaded', () => {
     initTheme();
     const toggle = document.getElementById('theme-toggle');
@@ -82,12 +87,10 @@ document.addEventListener('DOMContentLoaded', () => {
     function updateToggleUI() {
         if (window._posDarkMode === false) {
             document.body.classList.add('light-mode');
-            document.documentElement.style.setProperty('--theme-color', '#f3f4f6');
             icon.className = 'fa-solid fa-sun';
             toggle.setAttribute('title', 'Mode Gelap');
         } else {
             document.body.classList.remove('light-mode');
-            document.documentElement.style.setProperty('--theme-color', '#08090a');
             icon.className = 'fa-solid fa-moon';
             toggle.setAttribute('title', 'Mode Terang');
         }
@@ -96,14 +99,12 @@ document.addEventListener('DOMContentLoaded', () => {
     toggle.addEventListener('click', () => {
         toggleDarkMode();
         updateToggleUI();
-        // Re-inject CSS vars for new colors
         injectThemeCSS();
     });
 
     updateToggleUI();
     injectThemeCSS();
 
-    // Apply to meta theme-color
     const meta = document.querySelector('meta[name="theme-color"]');
     if (meta) meta.setAttribute('content', window._posDarkMode === false ? '#f3f4f6' : '#08090a');
 });
@@ -116,20 +117,55 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('title').textContent = CONFIG.storeName;
   document.title = 'Login — ' + CONFIG.storeName;
 
-  firebase.initializeApp(CONFIG.firebase);
-  const auth = firebase.auth();
-  auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(() => {});
-
-  // Already logged in?
-  auth.onAuthStateChanged(u => {
-    if (u) location.href = 'index.html';
+  document.getElementById('demo-btn').addEventListener('click', () => {
+    location.href = 'index.html?demo=1';
   });
+
+  function isFirebaseConfigValid(cfg) {
+    if (!cfg || !cfg.apiKey) return false;
+    const key = String(cfg.apiKey);
+    if (!key || key.includes('***') || key.includes('YOUR_') || key.includes('XXXX')) return false;
+    if (!String(cfg.messagingSenderId || '').match(/^\d+$/)) return false;
+    if (!String(cfg.appId || '').includes(':')) return false;
+    return true;
+  }
+
+  const errEl = document.getElementById('error');
+  const hintEl = document.getElementById('cfg-hint');
+  const cfgOk = isFirebaseConfigValid(CONFIG.firebase);
+  let auth = null;
+
+  if (!cfgOk) {
+    errEl.textContent = 'Firebase API key belum valid. Untuk presentasi, pakai tombol Masuk Demo.';
+    errEl.classList.remove('hidden');
+    hintEl.textContent = 'Atau buka index.html?demo=1 langsung.';
+    hintEl.classList.remove('hidden');
+    document.getElementById('login-btn').disabled = true;
+  } else {
+    try {
+      firebase.initializeApp(CONFIG.firebase);
+      auth = firebase.auth();
+      auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(() => {});
+      auth.onAuthStateChanged(u => {
+        if (u) location.href = 'index.html';
+      });
+    } catch (e) {
+      errEl.textContent = 'Gagal init Firebase: ' + (e.message || e);
+      errEl.classList.remove('hidden');
+      document.getElementById('login-btn').disabled = true;
+    }
+  }
 
   document.getElementById('login-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const err = document.getElementById('error');
     const btn = document.getElementById('login-btn');
     err.classList.add('hidden');
+    if (!auth) {
+      err.textContent = 'Firebase belum siap. Pakai Masuk Demo.';
+      err.classList.remove('hidden');
+      return;
+    }
     btn.disabled = true;
     btn.textContent = 'Masuk…';
     try {
@@ -139,14 +175,17 @@ document.addEventListener('DOMContentLoaded', () => {
       );
       location.href = 'index.html';
     } catch (error) {
-      if (['auth/wrong-password','auth/user-not-found','auth/invalid-credential','auth/invalid-email'].includes(error.code)) {
+      const code = error.code || '';
+      if (['auth/wrong-password','auth/user-not-found','auth/invalid-credential','auth/invalid-email'].includes(code)) {
         err.textContent = 'Email atau password salah';
-      } else if (error.code === 'auth/network-request-failed') {
+      } else if (code === 'auth/network-request-failed') {
         err.textContent = 'Gagal koneksi. Cek internet.';
-      } else if (error.code === 'auth/too-many-requests') {
+      } else if (code === 'auth/too-many-requests') {
         err.textContent = 'Terlalu banyak percobaan. Coba lagi nanti.';
+      } else if (code === 'auth/api-key-not-valid' || String(error.message||'').includes('api-key-not-valid')) {
+        err.textContent = 'API key Firebase tidak valid. Hard-refresh (Ctrl+Shift+R) atau pakai Masuk Demo.';
       } else {
-        err.textContent = 'Error: ' + (error.code || error.message);
+        err.textContent = 'Error: ' + (code || error.message);
       }
       err.classList.remove('hidden');
       btn.disabled = false;
