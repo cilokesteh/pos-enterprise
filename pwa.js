@@ -8,7 +8,7 @@
   const manifest = {
     name: name,
     short_name: name.slice(0, 12),
-    description: 'POS Enterprise — Point of Sale profesional',
+    description: 'Toko HP · POS Enterprise',
     start_url: './index.html',
     display: 'standalone',
     background_color: '#08090a',
@@ -43,7 +43,7 @@
 
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('sw.js?v=1').catch(() => {});
+      navigator.serviceWorker.register('sw.js?v=3').catch(() => {});
     });
   }
 })();

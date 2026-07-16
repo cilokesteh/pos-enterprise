@@ -1,5 +1,5 @@
 // POS Enterprise Service Worker
-const CACHE = 'pos-enterprise-v1';
+const CACHE = 'pos-enterprise-v3';
 const ASSETS = [
   './',
   './index.html',
@@ -24,7 +24,6 @@ self.addEventListener('activate', (e) => {
 
 self.addEventListener('fetch', (e) => {
   const url = e.request.url;
-  // Never cache Firebase / Google / CDN API calls
   if (
     url.includes('firestore') ||
     url.includes('googleapis') ||
@@ -36,8 +35,14 @@ self.addEventListener('fetch', (e) => {
     return;
   }
 
-  // Network-first for HTML, cache-first for local shell
-  if (e.request.mode === 'navigate' || url.endsWith('.html')) {
+  // Network-first for HTML + config.js (always get latest for demos)
+  if (
+    e.request.mode === 'navigate' ||
+    url.endsWith('.html') ||
+    url.includes('config.js') ||
+    url.includes('index.html') ||
+    url.includes('login.html')
+  ) {
     e.respondWith(
       fetch(e.request)
         .then((res) => {
