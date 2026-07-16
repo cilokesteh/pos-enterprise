@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="theme-color" content="#08090a">
+<meta name="theme-color" content="#08090a" id="meta-theme-color">
 <meta http-equiv="cache-control" content="no-cache, no-store, must-revalidate">
 <title>POS Enterprise</title>
 <script src="config.js"></script>
@@ -52,9 +52,37 @@
     .cart-panel { position: fixed; right: 0; top: 0; bottom: 0; z-index: 30; transform: translateX(100%); }
     .cart-panel.open { transform: translateX(0); }
   }
+
+
+  /* Light mode overrides */
+  .light-mode body { background: var(--pos-bg-page-light, #f3f4f6) !important; color: var(--pos-text-primary-light, #111) !important; }
+  .light-mode .sidebar { background: var(--pos-bg-panel-light, #fff) !important; border-right-color: var(--pos-border-light, rgba(0,0,0,0.12)) !important; }
+  .light-mode .surface { background: var(--pos-bg-surface-light, #fff) !important; border-color: var(--pos-border-light, rgba(0,0,0,0.12)) !important; }
+  .light-mode .panel { background: var(--pos-bg-panel-light, #fff) !important; border-color: var(--pos-border-light, rgba(0,0,0,0.12)) !important; }
+  .light-mode .input { background: var(--pos-bg-surface-light, #fff) !important; border-color: var(--pos-border-light, rgba(0,0,0,0.12)) !important; color: var(--pos-text-primary-light, #111) !important; }
+  .light-mode .input:focus { border-color: var(--pos-accent, #7170ff) !important; box-shadow: 0 0 0 2px rgba(113,112,255,.2) !important; }
+  .light-mode .product-card { background: var(--pos-bg-surface-light, #fff) !important; border-color: var(--pos-border-light, rgba(0,0,0,0.12)) !important; }
+  .light-mode .product-card:hover { border-color: var(--pos-accent, #7170ff) !important; background: var(--pos-bg-hover-light, #f0f0f5) !important; }
+  .light-mode .nav-item { color: var(--pos-text-tertiary-light, #6b7280) !important; }
+  .light-mode .nav-item:hover { background: var(--pos-bg-hover-light, #f0f0f5) !important; color: var(--pos-text-primary-light, #111) !important; }
+  .light-mode .nav-item.active { background: rgba(113,112,255,.12) !important; color: var(--pos-accent, #5a59e0) !important; }
+  .light-mode .btn-ghost { background: var(--pos-bg-hover-light, #f0f0f5) !important; border-color: var(--pos-border-light, rgba(0,0,0,0.12)) !important; color: var(--pos-text-secondary-light, #374151) !important; }
+  .light-mode .btn-ghost:hover { background: var(--pos-bg-hover-light, #e5e7eb) !important; color: var(--pos-text-primary-light, #111) !important; }
+  .light-mode .modal-backdrop { background: rgba(0,0,0,.6) !important; }
+  .light-mode .modal-box { background: var(--pos-bg-surface-light, #fff) !important; border-color: var(--pos-border-light, rgba(0,0,0,0.12)) !important; }
+  .light-mode table.data tr:hover td { background: rgba(0,0,0,.02) !important; }
+  .light-mode .scroll-thin::-webkit-scrollbar-thumb { background: rgba(0,0,0,.15) !important; }
+  .light-mode .badge-ok { background: rgba(39,166,68,.1) !important; color: #16a34a !important; }
+  .light-mode .badge-warn { background: rgba(245,166,35,.1) !important; color: #d97706 !important; }
+  .light-mode .badge-err { background: rgba(248,113,113,.1) !important; color: #dc2626 !important; }
+  /* Theme toggle button */
+  .theme-toggle-btn { background: rgba(255,255,255,.06); border: 1px solid var(--pos-border); border-radius: 6px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--pos-text-tertiary); transition: all .15s; }
+  .theme-toggle-btn:hover { background: var(--pos-bg-hover); color: var(--pos-text-primary); }
+  .light-mode .theme-toggle-btn { background: rgba(0,0,0,.05); border-color: var(--pos-border-light, rgba(0,0,0,0.12)); color: var(--pos-text-tertiary-light, #6b7280); }
+  .light-mode .theme-toggle-btn:hover { background: var(--pos-bg-hover-light, #f0f0f5); color: var(--pos-text-primary-light, #111); }
 </style>
 </head>
-<body class="h-screen overflow-hidden">
+<body class="h-screen overflow-hidden" id="app-body">
 <div class="flex h-full">
   <!-- SIDEBAR -->
   <aside id="sidebar" class="sidebar w-60 flex-shrink-0 flex flex-col h-full">
@@ -63,9 +91,12 @@
         <div class="w-9 h-9 rounded-lg bg-accent flex items-center justify-center">
           <i class="fa-solid fa-building text-white text-sm"></i>
         </div>
-        <div>
+        <div class="flex-1">
           <div class="font-semibold text-sm leading-tight" id="brand-name">POS Enterprise</div>
           <div class="text-[11px] text-[var(--pos-text-muted)]" id="branch-label">HQ</div>
+        </div>
+        <div class="theme-toggle-btn" id="theme-toggle" title="Ganti tema" aria-label="Ganti tema" onclick="toggleDarkMode()">
+          <i id="toggle-icon" class="fa-solid fa-moon"></i>
         </div>
       </div>
     </div>
@@ -431,6 +462,27 @@ document.getElementById('set-addr').textContent = CONFIG.storeAddress;
 document.getElementById('set-wa').textContent = CONFIG.storeWA;
 
 const COL = CONFIG.collections;
+  // Theme initialization
+  document.addEventListener('DOMContentLoaded', () => {
+    initTheme();
+    injectThemeCSS();
+    applyThemeCSS();
+    updateToggleUI();
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute('content', window._posDarkMode === false ? '#f3f4f6' : '#08090a');
+  });
+  function updateToggleUI() {
+    const icon = document.getElementById('toggle-icon');
+    if (!icon) return;
+    if (window._posDarkMode === false) {
+      document.body.classList.add('light-mode');
+      icon.className = 'fa-solid fa-sun';
+    } else {
+      document.body.classList.remove('light-mode');
+      icon.className = 'fa-solid fa-moon';
+    }
+  }
+  
 firebase.initializeApp(CONFIG.firebase);
 const db = firebase.firestore();
 const auth = firebase.auth();
@@ -451,32 +503,7 @@ let todayStats = { tx: 0, revenue: 0 };
 function fmt(n) { return 'Rp ' + (n || 0).toLocaleString('id-ID'); }
 function col(name) { return COL[name] || name; }
 
-// Demo mode: ?demo=1 skips Firebase auth for UI preview
-const DEMO = new URLSearchParams(location.search).get('demo') === '1';
 auth.onAuthStateChanged(async (user) => {
-  if (DEMO) {
-    currentUser = { email: 'demo@pos-enterprise.com', uid: 'demo' };
-    userProfile = { name: 'Demo Admin', role: 'admin', branchId: null };
-    document.getElementById('user-name').textContent = 'Demo Admin';
-    document.getElementById('user-role').textContent = 'admin';
-    document.getElementById('user-avatar').textContent = 'D';
-    document.getElementById('kasir-name').value = 'Demo Admin';
-    document.getElementById('branch-label').textContent = 'HQ Demo';
-    // seed sample products for preview
-    products = [
-      {id:'1', name:'Kopi Latte', price:25000, costPrice:12000, stock:42, category:'Minuman', sku:'MNU-001'},
-      {id:'2', name:'Espresso', price:18000, costPrice:8000, stock:30, category:'Minuman', sku:'MNU-002'},
-      {id:'3', name:'Croissant', price:22000, costPrice:10000, stock:15, category:'Makanan', sku:'MKN-001'},
-      {id:'4', name:'Sandwich Club', price:35000, costPrice:18000, stock:8, category:'Makanan', sku:'MKN-002'},
-      {id:'5', name:'Air Mineral', price:5000, costPrice:2000, stock:100, category:'Minuman', sku:'MNU-003'},
-      {id:'6', name:'Nasi Goreng', price:28000, costPrice:14000, stock:3, category:'Makanan', sku:'MKN-003'},
-      {id:'7', name:'Paket Meeting', price:150000, costPrice:90000, stock:12, category:'Paket', sku:'PKT-001'},
-      {id:'8', name:'USB Cable', price:45000, costPrice:22000, stock:20, category:'Aksesoris', sku:'AKS-001'},
-    ];
-    todayStats = { tx: 24, revenue: 4850000 };
-    renderProducts(); updateStats(); refreshCategories(); renderCart();
-    return;
-  }
   if (!user) { location.href = 'login.html'; return; }
   currentUser = user;
   const name = user.email.split('@')[0];
