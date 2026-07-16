@@ -2,7 +2,7 @@
 // ║     POS ENTERPRISE — CONFIGURATION                      ║
 // ║  Linear-style dark theme · multi-branch · multi-role    ║
 // ║  + Light theme support with theme toggle                ║
-// ╚══════════════════════════════════════════════════════════╝
+// ╚═══════════════════════════════════════════════════════════╝
 
 const DESIGN = {
     colors: {
@@ -67,7 +67,9 @@ function getThemeColors() {
     return window._posDarkMode !== false ? DESIGN.colors : DESIGN.colorsLight;
 }
 
-// Firebase — isi dari Console → Project Settings → Web App
+// ─────────────────────────────────────────────────────────────
+// CONFIG — Store & App Settings
+// ─────────────────────────────────────────────────────────────
 const CONFIG = {
     storeName:    'POS Enterprise',
     storeJargon:  'Solusi Bisnis Terpadu',
@@ -81,8 +83,10 @@ const CONFIG = {
     branchId: null,
     branchName: '',
 
+    // Firebase — isi dari Console → Project Settings → Web App
+    // Demo mode (index.html?demo=1) tidak butuh Firebase config valid
     firebase: {
-        apiKey:            ***
+        apiKey:            '***',
         authDomain:        'pos-enterprise.firebaseapp.com',
         projectId:         'pos-enterprise',
         storageBucket:     'pos-enterprise.firebasestorage.app',
@@ -124,6 +128,9 @@ const CONFIG = {
     },
 };
 
+// ─────────────────────────────────────────────────────────────
+// THEME VARIANTS (color accents)
+// ─────────────────────────────────────────────────────────────
 const THEMES = {
     enterprise: {
         primary: 'indigo',
@@ -155,6 +162,9 @@ function getTheme() {
     return THEMES[CONFIG.theme] || THEMES.enterprise;
 }
 
+// ─────────────────────────────────────────────────────────────
+// THEME / DARK MODE UTILITIES
+// ─────────────────────────────────────────────────────────────
 function initTheme() {
     // Check localStorage for preference
     const saved = localStorage.getItem('pos-darkMode');
@@ -217,3 +227,6 @@ function injectThemeCSS() {
 `;
     document.head.appendChild(style);
 }
+
+// Firebase init lives in index.html / login.html so demo mode (?demo=1)
+// can skip auth entirely without needing real credentials.

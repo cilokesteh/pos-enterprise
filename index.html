@@ -462,30 +462,51 @@ document.getElementById('set-addr').textContent = CONFIG.storeAddress;
 document.getElementById('set-wa').textContent = CONFIG.storeWA;
 
 const COL = CONFIG.collections;
-  // Theme initialization
-  document.addEventListener('DOMContentLoaded', () => {
-    initTheme();
-    injectThemeCSS();
-    applyThemeCSS();
-    updateToggleUI();
-    const meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) meta.setAttribute('content', window._posDarkMode === false ? '#f3f4f6' : '#08090a');
-  });
-  function updateToggleUI() {
-    const icon = document.getElementById('toggle-icon');
-    if (!icon) return;
-    if (window._posDarkMode === false) {
-      document.body.classList.add('light-mode');
-      icon.className = 'fa-solid fa-sun';
-    } else {
-      document.body.classList.remove('light-mode');
-      icon.className = 'fa-solid fa-moon';
-    }
+// Demo mode: ?demo=1 skips Firebase auth for client presentation
+const DEMO = new URLSearchParams(location.search).get('demo') === '1';
+
+// Theme initialization
+document.addEventListener('DOMContentLoaded', () => {
+  initTheme();
+  injectThemeCSS();
+  applyThemeCSS();
+  updateToggleUI();
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.setAttribute('content', window._posDarkMode === false ? '#f3f4f6' : '#08090a');
+});
+function updateToggleUI() {
+  const icon = document.getElementById('toggle-icon');
+  if (!icon) return;
+  if (window._posDarkMode === false) {
+    document.body.classList.add('light-mode');
+    icon.className = 'fa-solid fa-sun';
+  } else {
+    document.body.classList.remove('light-mode');
+    icon.className = 'fa-solid fa-moon';
   }
-  
-firebase.initializeApp(CONFIG.firebase);
-const db = firebase.firestore();
-const auth = firebase.auth();
+}
+
+let db = null;
+let auth = null;
+if (!DEMO) {
+  try {
+    const cfg = CONFIG.firebase || {};
+    const valid = cfg.apiKey && !String(cfg.apiKey).includes('***')
+      && cfg.messagingSenderId && !String(cfg.messagingSenderId).includes('YOUR_')
+      && cfg.appId && !String(cfg.appId).includes('YOUR_');
+    if (!valid) {
+      console.warn('Firebase config invalid — redirecting to demo mode');
+      location.replace(location.pathname + '?demo=1' + location.hash);
+    } else {
+      firebase.initializeApp(cfg);
+      db = firebase.firestore();
+      auth = firebase.auth();
+    }
+  } catch (e) {
+    console.error('Firebase init failed', e);
+    location.replace(location.pathname + '?demo=1' + location.hash);
+  }
+}
 
 let currentUser = null;
 let userProfile = { name: 'Admin', role: 'admin', branchId: null };
@@ -503,38 +524,33 @@ let todayStats = { tx: 0, revenue: 0 };
 function fmt(n) { return 'Rp ' + (n || 0).toLocaleString('id-ID'); }
 function col(name) { return COL[name] || name; }
 
-auth.onAuthStateChanged(async (user) => {
-  if (!user) { location.href = 'login.html'; return; }
-  currentUser = user;
-  const name = user.email.split('@')[0];
-  document.getElementById('user-name').textContent = name;
-  document.getElementById('user-avatar').textContent = name[0].toUpperCase();
-  document.getElementById('kasir-name').value = name;
-  try {
-    const snap = await db.collection(col('users')).where('email', '==', user.email).limit(1).get();
-    if (!snap.empty) {
-      userProfile = { id: snap.docs[0].id, ...snap.docs[0].data() };
-      document.getElementById('user-name').textContent = userProfile.name || name;
-      document.getElementById('user-role').textContent = userProfile.role || 'admin';
-      document.getElementById('user-avatar').textContent = (userProfile.name || name)[0].toUpperCase();
-      document.getElementById('kasir-name').value = userProfile.name || name;
-      if (userProfile.branchId) {
-        CONFIG.branchId = userProfile.branchId;
-        const b = await db.collection(col('branches')).doc(userProfile.branchId).get();
-        if (b.exists) {
-          document.getElementById('branch-label').textContent = b.data().name;
-          CONFIG.branchName = b.data().name;
-        }
-      }
-    }
-  } catch (e) { console.warn('profile load', e); }
-  applyRoleUI();
-  loadProducts();
-  loadTodayStats();
-  loadBranches();
-  loadUsers();
+function seedDemo() {
+  currentUser = { email: 'demo@pos-enterprise.com', uid: 'demo' };
+  userProfile = { name: 'Demo Admin', role: 'admin', branchId: null };
+  document.getElementById('user-name').textContent = 'Demo Admin';
+  document.getElementById('user-role').textContent = 'admin';
+  document.getElementById('user-avatar').textContent = 'D';
+  document.getElementById('kasir-name').value = 'Demo Admin';
+  document.getElementById('branch-label').textContent = 'HQ Demo';
+  products = [
+    {id:'1', name:'Kopi Latte', price:25000, costPrice:12000, stock:42, category:'Minuman', sku:'MNU-001'},
+    {id:'2', name:'Espresso', price:18000, costPrice:8000, stock:30, category:'Minuman', sku:'MNU-002'},
+    {id:'3', name:'Croissant', price:22000, costPrice:10000, stock:15, category:'Makanan', sku:'MKN-001'},
+    {id:'4', name:'Sandwich Club', price:35000, costPrice:18000, stock:8, category:'Makanan', sku:'MKN-002'},
+    {id:'5', name:'Air Mineral', price:5000, costPrice:2000, stock:100, category:'Minuman', sku:'MNU-003'},
+    {id:'6', name:'Nasi Goreng', price:28000, costPrice:14000, stock:3, category:'Makanan', sku:'MKN-003'},
+    {id:'7', name:'Paket Meeting', price:150000, costPrice:90000, stock:12, category:'Paket', sku:'PKT-001'},
+    {id:'8', name:'USB Cable', price:45000, costPrice:22000, stock:20, category:'Aksesoris', sku:'AKS-001'},
+  ];
+  todayStats = { tx: 24, revenue: 4850000 };
+  branches = [{ id: 'br1', name: 'HQ Demo', address: CONFIG.storeAddress }];
+  users = [
+    { id: 'u1', name: 'Demo Admin', email: 'demo@pos-enterprise.com', role: 'admin', branchId: 'br1' },
+    { id: 'u2', name: 'Kasir 1', email: 'kasir1@demo.com', role: 'kasir', branchId: 'br1' },
+  ];
+  renderProducts(); updateStats(); refreshCategories(); renderCart();
   initReportDates();
-});
+}
 
 function applyRoleUI() {
   const role = userProfile.role || 'admin';
@@ -545,7 +561,50 @@ function applyRoleUI() {
   }
 }
 
-function logout() { auth.signOut().then(() => location.href = 'login.html'); }
+function logout() {
+  if (DEMO || !auth) {
+    location.href = 'login.html';
+    return;
+  }
+  auth.signOut().then(() => location.href = 'login.html');
+}
+
+if (DEMO) {
+  seedDemo();
+} else if (auth) {
+  auth.onAuthStateChanged(async (user) => {
+    if (!user) { location.href = 'login.html'; return; }
+    currentUser = user;
+    const name = user.email.split('@')[0];
+    document.getElementById('user-name').textContent = name;
+    document.getElementById('user-avatar').textContent = name[0].toUpperCase();
+    document.getElementById('kasir-name').value = name;
+    try {
+      const snap = await db.collection(col('users')).where('email', '==', user.email).limit(1).get();
+      if (!snap.empty) {
+        userProfile = { id: snap.docs[0].id, ...snap.docs[0].data() };
+        document.getElementById('user-name').textContent = userProfile.name || name;
+        document.getElementById('user-role').textContent = userProfile.role || 'admin';
+        document.getElementById('user-avatar').textContent = (userProfile.name || name)[0].toUpperCase();
+        document.getElementById('kasir-name').value = userProfile.name || name;
+        if (userProfile.branchId) {
+          CONFIG.branchId = userProfile.branchId;
+          const b = await db.collection(col('branches')).doc(userProfile.branchId).get();
+          if (b.exists) {
+            document.getElementById('branch-label').textContent = b.data().name;
+            CONFIG.branchName = b.data().name;
+          }
+        }
+      }
+    } catch (e) { console.warn('profile load', e); }
+    applyRoleUI();
+    loadProducts();
+    loadTodayStats();
+    loadBranches();
+    loadUsers();
+    initReportDates();
+  });
+}
 
 function switchView(name) {
   ['pos','products','reports','settings'].forEach(v => {
@@ -564,6 +623,7 @@ function switchView(name) {
 }
 
 function loadProducts() {
+  if (DEMO || !db) return;
   db.collection(col('products')).onSnapshot(snap => {
     products = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     renderProducts();
@@ -687,6 +747,7 @@ function updateStats() {
 }
 
 function loadTodayStats() {
+  if (DEMO || !db) { updateStats(); return; }
   const start = new Date(); start.setHours(0,0,0,0);
   db.collection(col('transactions'))
     .where('createdAt', '>=', start.getTime())
@@ -853,6 +914,23 @@ function hideConfirmModal() { document.getElementById('confirm-modal').classList
 async function finishPayment() {
   if (!pendingTx) return;
   try {
+    if (DEMO || !db) {
+      pendingTx.receiptSeq = (todayStats.tx || 0) + 1;
+      todayStats.tx += 1;
+      todayStats.revenue += pendingTx.total || 0;
+      for (const item of pendingTx.items) {
+        const p = products.find(x => x.name === item.name);
+        if (p) p.stock = Math.max(0, (p.stock || 0) - item.qty);
+      }
+      updateStats();
+      renderProducts();
+      showReceipt(pendingTx);
+      cart = [];
+      renderCart();
+      hideConfirmModal();
+      pendingTx = null;
+      return;
+    }
     // receipt seq
     const day = new Date(pendingTx.createdAt);
     const start = new Date(day); start.setHours(0,0,0,0);
@@ -1058,6 +1136,40 @@ async function loadReports() {
   products.forEach(p => { if (p.name) prodCost[p.name] = p.costPrice || 0; });
   window._currentProductCost = prodCost;
 
+  if (DEMO || !db) {
+    // sample report rows for client presentation
+    reportRows = [
+      { id: 'd1', invoice: 'INV-DEMO-001', total: 75000, method: 'cash', createdAt: Date.now()-86400000, items: [{name:'Kopi Latte', qty:1, price:25000},{name:'Croissant', qty:1, price:22000},{name:'Air Mineral', qty:1, price:5000}] },
+      { id: 'd2', invoice: 'INV-DEMO-002', total: 150000, method: 'qris', createdAt: Date.now()-3600000, items: [{name:'Paket Meeting', qty:1, price:150000}] },
+      { id: 'd3', invoice: 'INV-DEMO-003', total: 63000, method: 'transfer', createdAt: Date.now()-1800000, items: [{name:'Nasi Goreng', qty:1, price:28000},{name:'Espresso', qty:1, price:18000},{name:'Air Mineral', qty:1, price:5000}] },
+    ];
+    let omzet = 0, modal = 0;
+    reportRows.forEach(d => {
+      omzet += d.total || 0;
+      modal += (d.items||[]).reduce((s,it) => s + (prodCost[it.name]||0) * (it.qty||0), 0);
+    });
+    document.getElementById('r-tx').textContent = reportRows.length;
+    document.getElementById('r-omzet').textContent = fmt(omzet);
+    document.getElementById('r-modal').textContent = fmt(modal);
+    document.getElementById('r-profit').textContent = fmt(omzet - modal);
+    document.getElementById('r-avg').textContent = fmt(reportRows.length ? Math.round(omzet/reportRows.length) : 0);
+    const tb = document.getElementById('report-table-body');
+    if (tb) tb.innerHTML = reportRows.map(r => {
+      const d = new Date(r.createdAt);
+      const m = (r.items||[]).reduce((s,it) => s + (prodCost[it.name]||0) * (it.qty||0), 0);
+      return `<tr>
+        <td class="font-mono text-xs">${esc(r.invoice)}</td>
+        <td>${d.toLocaleDateString('id-ID')} ${d.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'})}</td>
+        <td>Demo Admin</td>
+        <td>—</td>
+        <td>${esc((r.method||'').toUpperCase())}</td>
+        <td>${fmt(r.total)}</td>
+        <td class="text-[var(--pos-success)]">${fmt(r.total - m)}</td>
+      </tr>`;
+    }).join('');
+    return;
+  }
+
   try {
     const snap = await db.collection(col('transactions'))
       .where('createdAt', '>=', start)
@@ -1143,6 +1255,16 @@ async function saveBranch() {
   loadBranches();
 }
 function loadBranches() {
+  if (DEMO || !db) {
+    document.getElementById('branch-list').innerHTML = branches.map(b =>
+      `<div class="flex justify-between items-center py-1.5 border-b border-white/5">
+        <div><div class="font-medium text-sm">${esc(b.name)}</div><div class="text-[11px] text-[var(--pos-text-muted)]">${esc(b.address||'')}</div></div>
+      </div>`
+    ).join('') || '<div class="text-[var(--pos-text-muted)] text-xs">Belum ada cabang</div>';
+    const sel = document.getElementById('u-branch');
+    if (sel) sel.innerHTML = '<option value="">— Pilih cabang —</option>' + branches.map(b => `<option value="${b.id}">${esc(b.name)}</option>`).join('');
+    return;
+  }
   db.collection(col('branches')).onSnapshot(snap => {
     branches = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     document.getElementById('branch-list').innerHTML = branches.map(b =>
@@ -1189,6 +1311,20 @@ async function saveUser() {
 }
 
 function loadUsers() {
+  if (DEMO || !db) {
+    const tb = document.getElementById('user-table-body');
+    if (!tb) return;
+    tb.innerHTML = users.map(u => {
+      const br = branches.find(b => b.id === u.branchId);
+      return `<tr>
+        <td>${esc(u.name)}</td><td>${esc(u.email)}</td>
+        <td><span class="badge badge-ok">${esc(u.role)}</span></td>
+        <td>${esc(br?.name||'—')}</td>
+        <td><button onclick="deleteUser('${u.id}')" class="btn-danger px-2 py-1 text-xs"><i class="fa-solid fa-trash"></i></button></td>
+      </tr>`;
+    }).join('') || '<tr><td colspan="5" class="text-center py-6 text-[var(--pos-text-muted)]">Belum ada user terdaftar</td></tr>';
+    return;
+  }
   db.collection(col('users')).onSnapshot(snap => {
     users = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     const tb = document.getElementById('user-table-body');
@@ -1212,7 +1348,7 @@ async function deleteUser(id) {
 }
 
 async function audit(action, details) {
-  if (!CONFIG.features.auditTrail) return;
+  if (DEMO || !db || !CONFIG.features.auditTrail) return;
   try {
     await db.collection(col('auditLogs')).add({
       action, details: details || {},
