@@ -1,5 +1,5 @@
 // POS Enterprise Service Worker
-const CACHE = 'pos-enterprise-v3';
+const CACHE = 'pos-enterprise-v4';
 const ASSETS = [
   './',
   './index.html',

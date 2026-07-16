@@ -2,8 +2,12 @@
 <html lang="id">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#08090a" id="meta-theme-color">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="format-detection" content="telephone=no">
 <meta http-equiv="cache-control" content="no-cache, no-store, must-revalidate">
 <title>POS Enterprise</title>
 <script src="config.js"></script>
@@ -64,32 +68,138 @@
   }
 
 
-  /* Light mode overrides */
-  .light-mode body { background: var(--pos-bg-page-light, #f3f4f6) !important; color: var(--pos-text-primary-light, #111) !important; }
-  .light-mode .sidebar { background: var(--pos-bg-panel-light, #fff) !important; border-right-color: var(--pos-border-light, rgba(0,0,0,0.12)) !important; }
-  .light-mode .surface { background: var(--pos-bg-surface-light, #fff) !important; border-color: var(--pos-border-light, rgba(0,0,0,0.12)) !important; }
-  .light-mode .panel { background: var(--pos-bg-panel-light, #fff) !important; border-color: var(--pos-border-light, rgba(0,0,0,0.12)) !important; }
-  .light-mode .input { background: var(--pos-bg-surface-light, #fff) !important; border-color: var(--pos-border-light, rgba(0,0,0,0.12)) !important; color: var(--pos-text-primary-light, #111) !important; }
-  .light-mode .input:focus { border-color: var(--pos-accent, #7170ff) !important; box-shadow: 0 0 0 2px rgba(113,112,255,.2) !important; }
-  .light-mode .product-card { background: var(--pos-bg-surface-light, #fff) !important; border-color: var(--pos-border-light, rgba(0,0,0,0.12)) !important; }
-  .light-mode .product-card:hover { border-color: var(--pos-accent, #7170ff) !important; background: var(--pos-bg-hover-light, #f0f0f5) !important; }
-  .light-mode .nav-item { color: var(--pos-text-tertiary-light, #6b7280) !important; }
-  .light-mode .nav-item:hover { background: var(--pos-bg-hover-light, #f0f0f5) !important; color: var(--pos-text-primary-light, #111) !important; }
-  .light-mode .nav-item.active { background: rgba(113,112,255,.12) !important; color: var(--pos-accent, #5a59e0) !important; }
-  .light-mode .btn-ghost { background: var(--pos-bg-hover-light, #f0f0f5) !important; border-color: var(--pos-border-light, rgba(0,0,0,0.12)) !important; color: var(--pos-text-secondary-light, #374151) !important; }
-  .light-mode .btn-ghost:hover { background: var(--pos-bg-hover-light, #e5e7eb) !important; color: var(--pos-text-primary-light, #111) !important; }
-  .light-mode .modal-backdrop { background: rgba(0,0,0,.6) !important; }
-  .light-mode .modal-box { background: var(--pos-bg-surface-light, #fff) !important; border-color: var(--pos-border-light, rgba(0,0,0,0.12)) !important; }
-  .light-mode table.data tr:hover td { background: rgba(0,0,0,.02) !important; }
-  .light-mode .scroll-thin::-webkit-scrollbar-thumb { background: rgba(0,0,0,.15) !important; }
-  .light-mode .badge-ok { background: rgba(39,166,68,.1) !important; color: #16a34a !important; }
-  .light-mode .badge-warn { background: rgba(245,166,35,.1) !important; color: #d97706 !important; }
-  .light-mode .badge-err { background: rgba(248,113,113,.1) !important; color: #dc2626 !important; }
-  /* Theme toggle button */
-  .theme-toggle-btn { background: rgba(255,255,255,.06); border: 1px solid var(--pos-border); border-radius: 6px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--pos-text-tertiary); transition: all .15s; }
+  /* Light mode — class is on body/html (not parent of body) */
+  body.light-mode,
+  html.light-mode body {
+    background: var(--pos-bg-page, #f3f4f6) !important;
+    color: var(--pos-text-primary, #111) !important;
+  }
+  body.light-mode .sidebar,
+  body.light-mode .panel,
+  body.light-mode .mobile-topbar {
+    background: #ffffff !important;
+    border-color: rgba(0,0,0,0.1) !important;
+  }
+  body.light-mode .surface,
+  body.light-mode .modal-box,
+  body.light-mode .product-card {
+    background: #ffffff !important;
+    border-color: rgba(0,0,0,0.1) !important;
+  }
+  body.light-mode .input {
+    background: #ffffff !important;
+    border-color: rgba(0,0,0,0.12) !important;
+    color: #111 !important;
+  }
+  body.light-mode .nav-item { color: #6b7280 !important; }
+  body.light-mode .nav-item:hover { background: #f0f0f5 !important; color: #111 !important; }
+  body.light-mode .nav-item.active { background: rgba(113,112,255,.12) !important; color: var(--pos-accent, #5a59e0) !important; }
+  body.light-mode .btn-ghost {
+    background: #f3f4f6 !important;
+    border-color: rgba(0,0,0,0.12) !important;
+    color: #374151 !important;
+  }
+  body.light-mode .btn-ghost:hover { background: #e5e7eb !important; color: #111 !important; }
+  body.light-mode .modal-backdrop { background: rgba(0,0,0,.45) !important; }
+  body.light-mode table.data th { color: #6b7280 !important; }
+  body.light-mode table.data td { color: #374151 !important; }
+  body.light-mode table.data tr:hover td { background: rgba(0,0,0,.03) !important; }
+  body.light-mode .scroll-thin::-webkit-scrollbar-thumb { background: rgba(0,0,0,.15) !important; }
+  body.light-mode .badge-ok { background: rgba(22,163,74,.12) !important; color: #16a34a !important; }
+  body.light-mode .badge-warn { background: rgba(217,119,6,.12) !important; color: #d97706 !important; }
+  body.light-mode .badge-err { background: rgba(220,38,38,.12) !important; color: #dc2626 !important; }
+  body.light-mode .theme-toggle-btn {
+    background: rgba(0,0,0,.05) !important;
+    border-color: rgba(0,0,0,0.12) !important;
+    color: #374151 !important;
+  }
+
+  /* Theme toggle */
+  .theme-toggle-btn {
+    background: rgba(255,255,255,.06);
+    border: 1px solid var(--pos-border);
+    border-radius: 8px;
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+    min-height: 40px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: var(--pos-text-tertiary);
+    transition: all .15s;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
   .theme-toggle-btn:hover { background: var(--pos-bg-hover); color: var(--pos-text-primary); }
-  .light-mode .theme-toggle-btn { background: rgba(0,0,0,.05); border-color: var(--pos-border-light, rgba(0,0,0,0.12)); color: var(--pos-text-tertiary-light, #6b7280); }
-  .light-mode .theme-toggle-btn:hover { background: var(--pos-bg-hover-light, #f0f0f5); color: var(--pos-text-primary-light, #111); }
+  .theme-toggle-btn:active { transform: scale(0.96); }
+
+  /* Mobile shell */
+  .mobile-topbar { background: var(--pos-bg-panel); }
+  .scrim {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.55);
+    z-index: 35;
+  }
+  .scrim.show { display: block; }
+  .sidebar { transition: transform .22s ease; z-index: 45; }
+  .cart-panel { transition: transform .22s ease; z-index: 45; background: var(--pos-bg-panel); }
+
+  /* Safe areas iOS */
+  body {
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+
+  /* Touch-friendly controls */
+  button, .nav-item, .product-card, select, input {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+  .nav-item { min-height: 44px; }
+  .product-card { min-height: 88px; }
+  .input { font-size: 16px !important; } /* prevent iOS zoom on focus */
+  .btn-primary, .btn-ghost, .btn-danger { min-height: 44px; }
+
+  @media (max-width: 1024px) {
+    .sidebar {
+      position: fixed;
+      left: 0; top: 0; bottom: 0;
+      width: min(82vw, 288px);
+      transform: translateX(-105%);
+      box-shadow: none;
+    }
+    .sidebar.open {
+      transform: translateX(0);
+      box-shadow: 8px 0 32px rgba(0,0,0,.35);
+    }
+    .cart-panel {
+      position: fixed;
+      right: 0; top: 0; bottom: 0;
+      width: min(92vw, 360px);
+      transform: translateX(105%);
+      border-left: 1px solid var(--pos-border);
+    }
+    .cart-panel.open {
+      transform: translateX(0);
+      box-shadow: -8px 0 32px rgba(0,0,0,.35);
+    }
+    #view-pos.active { flex-direction: column; }
+    #view-pos .stats-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
+    .modal-box { max-height: min(90vh, 720px); overflow: auto; -webkit-overflow-scrolling: touch; }
+    table.data { font-size: 12px; }
+    table.data th, table.data td { padding: 10px 8px; }
+  }
+
+  @media (max-width: 640px) {
+    #product-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 8px !important; }
+    .page-title { font-size: 1rem; }
+  }
 </style>
 </head>
 <body class="h-screen max-h-screen overflow-hidden" id="app-body">
@@ -105,9 +215,9 @@
           <div class="font-semibold text-sm leading-tight" id="brand-name">POS Enterprise</div>
           <div class="text-[11px] text-[var(--pos-text-muted)]" id="branch-label">HQ</div>
         </div>
-        <div class="theme-toggle-btn" id="theme-toggle" title="Ganti tema" aria-label="Ganti tema" onclick="toggleDarkMode()">
-          <i id="toggle-icon" class="fa-solid fa-moon"></i>
-        </div>
+        <button type="button" class="theme-toggle-btn" id="theme-toggle" data-theme-title title="Ganti tema" aria-label="Ganti tema" onclick="return toggleDarkMode(event)">
+          <i id="toggle-icon" class="fa-solid fa-moon theme-toggle-icon"></i>
+        </button>
       </div>
     </div>
     <nav class="flex-1 p-3 space-y-1">
@@ -138,29 +248,33 @@
           <i class="fa-solid fa-right-from-bracket"></i>
         </button>
       </div>
-      <div class="text-[10px] text-[var(--pos-text-muted)] text-center select-none">v1.2 toko-hp</div>
+      <div class="text-[10px] text-[var(--pos-text-muted)] text-center select-none">v1.3 mobile</div>
     </div>
   </aside>
 
   <!-- MAIN -->
   <main class="flex-1 flex flex-col min-w-0 min-h-0 h-full overflow-hidden">
     <!-- Top bar mobile -->
-    <div class="lg:hidden flex items-center justify-between px-4 py-3 border-b border-white/5 bg-[var(--pos-bg-panel)]">
-      <button onclick="document.getElementById('sidebar').classList.toggle('open')" class="btn-ghost px-3 py-2 text-sm">
+    <div class="lg:hidden mobile-topbar flex items-center justify-between gap-2 px-3 py-2.5 border-b border-white/5 sticky top-0 z-20">
+      <button type="button" onclick="openSidebar()" class="btn-ghost px-3 py-2 text-sm" aria-label="Menu">
         <i class="fa-solid fa-bars"></i>
       </button>
-      <span class="font-medium text-sm" id="mobile-title">Kasir</span>
-      <button onclick="document.getElementById('cart-panel').classList.toggle('open')" class="btn-ghost px-3 py-2 text-sm relative">
+      <span class="font-medium text-sm truncate flex-1 text-center" id="mobile-title">Kasir</span>
+      <button type="button" class="theme-toggle-btn" data-theme-title title="Ganti tema" aria-label="Ganti tema" onclick="return toggleDarkMode(event)">
+        <i class="fa-solid fa-moon theme-toggle-icon"></i>
+      </button>
+      <button type="button" onclick="openCart()" class="btn-ghost px-3 py-2 text-sm relative" aria-label="Keranjang">
         <i class="fa-solid fa-cart-shopping"></i>
         <span id="cart-badge" class="hidden absolute -top-1 -right-1 w-4 h-4 bg-accent text-white text-[10px] rounded-full flex items-center justify-center">0</span>
       </button>
     </div>
+    <div id="ui-scrim" class="scrim" onclick="closeOverlays()"></div>
 
     <!-- VIEW: POS -->
     <div id="view-pos" class="active flex-1 flex min-h-0 overflow-hidden">
       <div class="flex-1 flex flex-col p-4 min-w-0 overflow-hidden">
         <!-- Stats strip -->
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+        <div class="stats-grid grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
           <div class="surface p-3">
             <div class="text-[11px] text-[var(--pos-text-tertiary)]">Produk</div>
             <div class="text-xl font-semibold mt-0.5" id="stat-products">0</div>
@@ -560,25 +674,28 @@ const COL = CONFIG.collections;
 // Demo mode: ?demo=1 skips Firebase auth for client presentation
 const DEMO = new URLSearchParams(location.search).get('demo') === '1';
 
-// Theme initialization
+// Theme + mobile shell
 document.addEventListener('DOMContentLoaded', () => {
   initTheme();
   injectThemeCSS();
-  applyThemeCSS();
-  updateToggleUI();
-  const meta = document.querySelector('meta[name="theme-color"]');
-  if (meta) meta.setAttribute('content', window._posDarkMode === false ? '#f3f4f6' : '#08090a');
+  applyThemeToDom();
 });
-function updateToggleUI() {
-  const icon = document.getElementById('toggle-icon');
-  if (!icon) return;
-  if (window._posDarkMode === false) {
-    document.body.classList.add('light-mode');
-    icon.className = 'fa-solid fa-sun';
-  } else {
-    document.body.classList.remove('light-mode');
-    icon.className = 'fa-solid fa-moon';
-  }
+function updateToggleUI() { applyThemeToDom(); }
+
+function openSidebar() {
+  document.getElementById('sidebar')?.classList.add('open');
+  document.getElementById('cart-panel')?.classList.remove('open');
+  document.getElementById('ui-scrim')?.classList.add('show');
+}
+function openCart() {
+  document.getElementById('cart-panel')?.classList.add('open');
+  document.getElementById('sidebar')?.classList.remove('open');
+  document.getElementById('ui-scrim')?.classList.add('show');
+}
+function closeOverlays() {
+  document.getElementById('sidebar')?.classList.remove('open');
+  document.getElementById('cart-panel')?.classList.remove('open');
+  document.getElementById('ui-scrim')?.classList.remove('show');
 }
 
 let db = null;
@@ -720,7 +837,7 @@ function switchView(name) {
   const titles = { pos: 'Kasir', products: 'Produk', stock: 'Stok', reports: 'Laporan', settings: 'Pengaturan' };
   const mt = document.getElementById('mobile-title');
   if (mt) mt.textContent = titles[name] || name;
-  document.getElementById('sidebar').classList.remove('open');
+  closeOverlays();
   if (name === 'products') renderProductTable();
   if (name === 'stock') { renderStockPanel(); loadStockMoves(); }
   if (name === 'reports') loadReports();

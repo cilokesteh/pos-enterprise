@@ -168,27 +168,51 @@ function getTheme() {
 // THEME / DARK MODE UTILITIES
 // ─────────────────────────────────────────────────────────────
 function initTheme() {
-    // Check localStorage for preference
     const saved = localStorage.getItem('pos-darkMode');
     if (saved !== null) {
         window._posDarkMode = saved === 'true';
     } else {
-        window._posDarkMode = true; // default dark
+        // system preference on first visit
+        window._posDarkMode = !(window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches);
     }
+    applyThemeToDom();
+}
+
+function applyThemeToDom() {
+    const dark = window._posDarkMode !== false;
+    document.documentElement.classList.toggle('light-mode', !dark);
+    document.documentElement.classList.toggle('dark-mode', dark);
+    if (document.body) {
+        document.body.classList.toggle('light-mode', !dark);
+        document.body.classList.toggle('dark-mode', dark);
+    }
+    const icons = document.querySelectorAll('#toggle-icon, .theme-toggle-icon');
+    icons.forEach((icon) => {
+        icon.className = dark ? 'fa-solid fa-moon theme-toggle-icon' : 'fa-solid fa-sun theme-toggle-icon';
+    });
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute('content', dark ? '#08090a' : '#f3f4f6');
+    document.querySelectorAll('[data-theme-title]').forEach((el) => {
+        el.setAttribute('title', dark ? 'Mode Terang' : 'Mode Gelap');
+    });
 }
 
 function setDarkMode(on) {
-    window._posDarkMode = on;
-    localStorage.setItem('pos-darkMode', String(on));
+    window._posDarkMode = !!on;
+    localStorage.setItem('pos-darkMode', String(!!on));
     injectThemeCSS();
+    applyThemeToDom();
 }
 
-function toggleDarkMode() {
+function toggleDarkMode(ev) {
+    if (ev && ev.preventDefault) ev.preventDefault();
     setDarkMode(!window._posDarkMode);
+    return false;
 }
 
 function applyThemeCSS() {
     injectThemeCSS();
+    applyThemeToDom();
 }
 
 function injectThemeCSS() {
@@ -198,8 +222,12 @@ function injectThemeCSS() {
     const r = parseInt(hex.slice(1, 3), 16);
     const g = parseInt(hex.slice(3, 5), 16);
     const b = parseInt(hex.slice(5, 7), 16);
-    const style = document.createElement('style');
-    style.id = 'theme-overrides';
+    let style = document.getElementById('theme-overrides');
+    if (!style) {
+        style = document.createElement('style');
+        style.id = 'theme-overrides';
+        document.head.appendChild(style);
+    }
     style.textContent = `
 :root {
   --pos-bg-page: ${colors['bg-page']};
@@ -226,8 +254,9 @@ function injectThemeCSS() {
 .border-accent { border-color: ${hex} !important; }
 .focus-accent:focus { border-color: ${hex} !important; outline: none; box-shadow: 0 0 0 2px rgba(${r},${g},${b},0.25); }
 .bg-accent-soft { background-color: rgba(${r},${g},${b},0.15) !important; }
+body { background: ${colors['bg-page']}; color: ${colors['text-primary']}; }
+.input { background: ${colors['bg-surface']}; border-color: ${colors.border}; color: ${colors['text-primary']}; }
 `;
-    document.head.appendChild(style);
 }
 
 // Firebase init lives in index.html / login.html so demo mode (?demo=1)

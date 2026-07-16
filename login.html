@@ -2,7 +2,7 @@
 <html lang="id">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#08090a">
 <title>Login — POS Enterprise</title>
 <script src="config.js"></script>
@@ -81,32 +81,15 @@
 <script>
 document.addEventListener('DOMContentLoaded', () => {
     initTheme();
-    const toggle = document.getElementById('theme-toggle');
-    const icon = document.getElementById('toggle-icon');
-
-    function updateToggleUI() {
-        if (window._posDarkMode === false) {
-            document.body.classList.add('light-mode');
-            icon.className = 'fa-solid fa-sun';
-            toggle.setAttribute('title', 'Mode Gelap');
-        } else {
-            document.body.classList.remove('light-mode');
-            icon.className = 'fa-solid fa-moon';
-            toggle.setAttribute('title', 'Mode Terang');
-        }
-    }
-
-    toggle.addEventListener('click', () => {
-        toggleDarkMode();
-        updateToggleUI();
-        injectThemeCSS();
-    });
-
-    updateToggleUI();
     injectThemeCSS();
-
-    const meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) meta.setAttribute('content', window._posDarkMode === false ? '#f3f4f6' : '#08090a');
+    applyThemeToDom();
+    const toggle = document.getElementById('theme-toggle');
+    if (toggle) {
+      toggle.addEventListener('click', (e) => toggleDarkMode(e));
+      toggle.setAttribute('data-theme-title', '1');
+    }
+    const icon = document.getElementById('toggle-icon');
+    if (icon) icon.classList.add('theme-toggle-icon');
 });
 </script>
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
