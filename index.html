@@ -451,7 +451,32 @@ let todayStats = { tx: 0, revenue: 0 };
 function fmt(n) { return 'Rp ' + (n || 0).toLocaleString('id-ID'); }
 function col(name) { return COL[name] || name; }
 
+// Demo mode: ?demo=1 skips Firebase auth for UI preview
+const DEMO = new URLSearchParams(location.search).get('demo') === '1';
 auth.onAuthStateChanged(async (user) => {
+  if (DEMO) {
+    currentUser = { email: 'demo@pos-enterprise.com', uid: 'demo' };
+    userProfile = { name: 'Demo Admin', role: 'admin', branchId: null };
+    document.getElementById('user-name').textContent = 'Demo Admin';
+    document.getElementById('user-role').textContent = 'admin';
+    document.getElementById('user-avatar').textContent = 'D';
+    document.getElementById('kasir-name').value = 'Demo Admin';
+    document.getElementById('branch-label').textContent = 'HQ Demo';
+    // seed sample products for preview
+    products = [
+      {id:'1', name:'Kopi Latte', price:25000, costPrice:12000, stock:42, category:'Minuman', sku:'MNU-001'},
+      {id:'2', name:'Espresso', price:18000, costPrice:8000, stock:30, category:'Minuman', sku:'MNU-002'},
+      {id:'3', name:'Croissant', price:22000, costPrice:10000, stock:15, category:'Makanan', sku:'MKN-001'},
+      {id:'4', name:'Sandwich Club', price:35000, costPrice:18000, stock:8, category:'Makanan', sku:'MKN-002'},
+      {id:'5', name:'Air Mineral', price:5000, costPrice:2000, stock:100, category:'Minuman', sku:'MNU-003'},
+      {id:'6', name:'Nasi Goreng', price:28000, costPrice:14000, stock:3, category:'Makanan', sku:'MKN-003'},
+      {id:'7', name:'Paket Meeting', price:150000, costPrice:90000, stock:12, category:'Paket', sku:'PKT-001'},
+      {id:'8', name:'USB Cable', price:45000, costPrice:22000, stock:20, category:'Aksesoris', sku:'AKS-001'},
+    ];
+    todayStats = { tx: 24, revenue: 4850000 };
+    renderProducts(); updateStats(); refreshCategories(); renderCart();
+    return;
+  }
   if (!user) { location.href = 'login.html'; return; }
   currentUser = user;
   const name = user.email.split('@')[0];
