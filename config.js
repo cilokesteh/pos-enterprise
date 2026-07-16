@@ -71,13 +71,13 @@ function getThemeColors() {
 // CONFIG — Store & App Settings
 // ─────────────────────────────────────────────────────────────
 const CONFIG = {
-    storeName:    'POS Enterprise',
-    storeJargon:  'Solusi Bisnis Terpadu',
+    storeName:    'Toko HP Enterprise',
+    storeJargon:  'HP · Aksesoris · Servis',
     storeAddress: 'Jl. Contoh Bisnis No. 1, Jakarta',
-    storeHours:   'Senin - Sabtu: 08.00 - 21.00 WIB',
+    storeHours:   'Senin - Sabtu: 09.00 - 21.00 WIB',
     storeWA:      '08xx-xxxx-xxxx',
-    storeIG:      '@pos_enterprise',
-    storeWebsite: 'pos-enterprise.com',
+    storeIG:      '@toko_hp',
+    storeWebsite: 'tokohp.demo',
 
     theme: 'enterprise',
     branchId: null,
@@ -113,6 +113,7 @@ const CONFIG = {
         users:        'ent-users',
         branches:     'ent-branches',
         auditLogs:    'ent-audit',
+        stockMoves:   'ent-stock-moves',
     },
 
     adminHint: {
