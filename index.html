@@ -1953,7 +1953,7 @@ function renderStockPanel() {
   const rows = stockMoves.slice(0, 100);
   tb.innerHTML = rows.map(m => {
     const d = new Date(m.createdAt||Date.now());
-    const isIn = m.dir === 'in';
+    const isIn = m.type === 'restock';
     return `<tr>
       <td>${d.toLocaleDateString('id-ID')} ${d.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'})}</td>
       <td><span class="badge ${isIn?'badge-ok':'badge-warn'}">${isIn?'MASUK':'KELUAR'}</span></td>
