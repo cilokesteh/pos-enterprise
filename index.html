@@ -1648,8 +1648,8 @@ function loadTodayStats() {
 
 /* Products CRUD — products can ONLY be created from Stok Masuk.
    Edit mode: only Harga Jual can be changed. */
-const PRODUCT_LOCKED_FIELDS = ['p-name','p-cost','p-stock','p-sku','p-category','p-brand'];
 function lockProductFields(lock) {
+  const PRODUCT_LOCKED_FIELDS = ['p-name','p-cost','p-stock','p-sku','p-category','p-brand'];
   PRODUCT_LOCKED_FIELDS.forEach(id => {
     const el = document.getElementById(id);
     if (el) { el.readOnly = lock; el.disabled = lock; el.style.opacity = lock ? '0.5' : '1'; el.style.cursor = lock ? 'not-allowed' : 'auto'; }
