@@ -77,7 +77,7 @@
   }
 
   /* Views */
-  #view-pos, #view-products, #view-stock, #view-reports, #view-settings {
+  #view-pos, #view-products, #view-stock, #view-reports, #view-history, #view-settings {
     display: none;
     flex: 1 1 auto;
     min-height: 0;
@@ -88,6 +88,7 @@
   #view-products.active,
   #view-stock.active,
   #view-reports.active,
+  #view-history.active,
   #view-settings.active {
     display: flex;
     flex-direction: column;
@@ -610,6 +611,9 @@
       <button class="nav-item w-full flex items-center gap-3 px-3 py-2.5 text-sm" data-view="reports" onclick="switchView('reports')">
         <i class="fa-solid fa-chart-line w-4"></i> Laporan
       </button>
+      <button class="nav-item w-full flex items-center gap-3 px-3 py-2.5 text-sm" data-view="history" onclick="switchView('history')">
+        <i class="fa-solid fa-clock-rotate-left w-4"></i> Riwayat
+      </button>
       <button class="nav-item w-full flex items-center gap-3 px-3 py-2.5 text-sm" data-view="settings" onclick="switchView('settings')">
         <i class="fa-solid fa-gear w-4"></i> Pengaturan
       </button>
@@ -828,6 +832,41 @@
                 </tr>
               </thead>
               <tbody id="report-table-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- VIEW: HISTORY (Reprint) -->
+    <div id="view-history">
+      <div class="page-scroll">
+        <div class="page-header">
+          <h1 class="text-lg font-semibold page-title">Riwayat Transaksi</h1>
+          <div class="page-tools">
+            <button onclick="loadHistory()" class="btn-ghost px-3 py-2 text-sm"><i class="fa-solid fa-rotate-right mr-1"></i>Refresh</button>
+            <button onclick="exportHistoryExcel()" class="btn-primary px-3 py-2 text-sm"><i class="fa-solid fa-file-excel mr-1"></i>Excel</button>
+          </div>
+        </div>
+        <div class="page-tools">
+          <input id="history-search" type="text" placeholder="Cari no struk / kasir / customer..." class="input flex-1 min-w-0 px-3 py-2 text-sm" oninput="renderHistoryTable()">
+          <select id="history-filter" class="input px-3 py-2 text-sm" onchange="renderHistoryTable()">
+            <option value="today">Hari ini</option>
+            <option value="7">7 hari</option>
+            <option value="30">30 hari</option>
+            <option value="all">Semua</option>
+          </select>
+        </div>
+        <div class="page-body scroll-thin">
+          <div class="table-wrap">
+            <table class="data w-full">
+              <thead>
+                <tr>
+                  <th>No Struk</th><th>Waktu</th><th>Kasir</th><th>Customer</th>
+                  <th class="num">Total</th><th>Metode</th><th style="text-align:right">Aksi</th>
+                </tr>
+              </thead>
+              <tbody id="history-table-body"></tbody>
             </table>
           </div>
         </div>
@@ -1934,6 +1973,53 @@ function showReceipt(t) {
   document.getElementById('receipt-modal').classList.remove('hidden');
 }
 function hideReceiptModal() { document.getElementById('receipt-modal').classList.add('hidden'); }
+
+function loadHistory() {
+  const range = document.getElementById('history-filter').value;
+  const now = Date.now();
+  let start = 0;
+  if (range === 'today') { const d = new Date(); d.setHours(0,0,0,0); start = d.getTime(); }
+  else if (range === '7') start = now - 7*864e5;
+  else if (range === '30') start = now - 30*864e5;
+  if (DEMO) { window._historyTx = getDemoTransactions().filter(t => t.createdAt >= start && t.createdAt <= now).sort((a,b)=>b.createdAt-a.createdAt); }
+  else if (db) { const snaps = []; db.collection(COL.transactions).where('createdAt','>=',start).where('createdAt','<=',now).get().then(q=>{ window._historyTx = q.docs.map(d=>d.data()).sort((a,b)=>b.createdAt-a.createdAt); renderHistoryTable(); }); return; }
+  else window._historyTx = [];
+  renderHistoryTable();
+}
+function renderHistoryTable() {
+  const q = (document.getElementById('history-search').value||'').toLowerCase();
+  const tx = (window._historyTx||[]).filter(t => {
+    const s = (receiptNo(t)+' '+(t.kasirName||'')+' '+(t.customerName||'')).toLowerCase();
+    return s.includes(q);
+  });
+  document.getElementById('history-table-body').innerHTML = tx.map(t => `
+    <tr>
+      <td class="font-mono text-xs">${esc(receiptNo(t))}</td>
+      <td class="text-xs">${new Date(t.createdAt).toLocaleString('id-ID')}</td>
+      <td class="text-xs">${esc(t.kasirName||'-')}</td>
+      <td class="text-xs">${esc(t.customerName||'-')}</td>
+      <td class="num font-semibold text-accent">${fmt(t.total)}</td>
+      <td class="text-xs">${esc((t.method||'').toUpperCase())}</td>
+      <td style="text-align:right">
+        <button onclick="reprintTx('${t.id}')" class="btn-ghost px-2 py-1 text-xs"><i class="fa-solid fa-print mr-1"></i>Reprint</button>
+      </td>
+    </tr>`).join('') || '<tr><td colspan="7" style="text-align:center;padding:30px;color:var(--pos-text-muted)">Belum ada transaksi</td></tr>';
+}
+function reprintTx(id) {
+  const t = (window._historyTx||[]).find(x => x.id === id);
+  if (!t) return alert('Transaksi tidak ditemukan');
+  showReceipt(t);
+}
+function exportHistoryExcel() {
+  const tx = (window._historyTx||[]);
+  if (!tx.length) return alert('Tidak ada data');
+  const rows = [['No Struk','Waktu','Kasir','Customer','Metode','Total','Modal','Profit']];
+  tx.forEach(t => rows.push([receiptNo(t), new Date(t.createdAt).toLocaleString('id-ID'), t.kasirName||'', t.customerName||'', (t.method||'').toUpperCase(), t.total, t.cost||0, t.profit||0]));
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Riwayat');
+  XLSX.writeFile(wb, 'RIWAYAT-'+CONFIG.storeName.replace(/\s+/g,'_')+'-'+new Date().toISOString().slice(0,10)+'.xlsx');
+}
 
 function printReceipt() {
   const el = document.getElementById('receipt-content');
