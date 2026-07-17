@@ -1441,20 +1441,21 @@ if (DEMO) {
 }
 
 function switchView(name) {
-  ['pos','products','stock','reports','settings'].forEach(v => {
+  ['pos','products','stock','reports','history','settings'].forEach(v => {
     const el = document.getElementById('view-' + v);
     if (el) el.classList.toggle('active', v === name);
   });
   document.querySelectorAll('.nav-item').forEach(el => {
     el.classList.toggle('active', el.dataset.view === name);
   });
-  const titles = { pos: 'Kasir', products: 'Produk', stock: 'Stok', reports: 'Laporan', settings: 'Pengaturan' };
+  const titles = { pos: 'Kasir', products: 'Produk', stock: 'Stok', reports: 'Laporan', history: 'Riwayat', settings: 'Pengaturan' };
   const mt = document.getElementById('mobile-title');
   if (mt) mt.textContent = titles[name] || name;
   closeOverlays();
   if (name === 'products') renderProductTable();
   if (name === 'stock') { renderStockPanel(); loadStockMoves(); }
   if (name === 'reports') loadReports();
+  if (name === 'history') loadHistory();
   if (name === 'settings') { loadBranches(); loadUsers(); }
 }
 
@@ -1903,7 +1904,7 @@ async function saveStockMove() {
       stockMoves.unshift({ id: 'm'+Date.now(), ...move });
       window._lastStockEntry = null;
       hideStockModal();
-      syncStockToProducts();
+      syncStockToProducts(isRetur ? 'retur' : 'restock', p.name, next);
       showToast(isRetur ? 'Retur ke cabang berhasil' : 'Restock berhasil');
       return;
     }
@@ -1917,12 +1918,12 @@ async function saveStockMove() {
     await db.collection(col('stockMoves')).add(move);
     await audit('stock.'+type, { productId: p.id, name: p.name, qty, stockAfter: next, note });
     hideStockModal();
-    syncStockToProducts();
+    syncStockToProducts(isRetur ? 'retur' : 'restock', p.name, next);
     showToast(isRetur ? 'Retur ke cabang berhasil' : 'Restock berhasil');
   } catch (e) { alert('Gagal mutasi stok: ' + e.message + '\n' + (e.stack||'')); console.error(e); }
 }
 
-function syncStockToProducts() {
+function syncStockToProducts(direction, productName, newStock) {
   const ic = document.getElementById('imei-count');
   if (ic) ic.textContent = products.reduce((s,p)=>s+(p.imeiPool||[]).length,0);
   // Re-render all views that show stock
@@ -1935,7 +1936,8 @@ function syncStockToProducts() {
     updateStockHint();
   }
   // Toast feedback
-  showToast('Stok berhasil ' + (dir === 'out' ? 'dikurangi' : 'ditambah') + ': ' + p.name + ' → ' + next);
+  const verb = direction === 'retur' ? 'dikurangi' : 'ditambah';
+  showToast('Stok berhasil ' + verb + (productName ? ': ' + productName + ' → ' + newStock : ''));
 }
 
 function loadStockMoves() {
