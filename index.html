@@ -1394,6 +1394,28 @@ function fmt(n) { return 'Rp ' + (n || 0).toLocaleString('id-ID'); }
 function col(name) { return COL[name] || name; }
 
 function seedDemo() {
+  // Support ?reset=1 to start with empty data
+  if (location.search.includes('reset=1')) {
+    currentUser = { email: 'demo@pos-enterprise.com', uid: 'demo' };
+    userProfile = { name: 'Demo Admin', role: 'admin', branchId: null };
+    document.getElementById('user-name').textContent = 'Demo Admin';
+    document.getElementById('user-role').textContent = 'admin';
+    document.getElementById('user-avatar').textContent = 'D';
+    document.getElementById('kasir-name').value = 'Demo Admin';
+    document.getElementById('branch-label').textContent = 'HQ Demo';
+    products = [];
+    stockMoves = [];
+    todayStats = { tx: 0, revenue: 0 };
+    branches = [{ id: 'br1', name: 'HQ Demo', address: CONFIG.storeAddress }];
+    users = [
+      { id: 'u1', name: 'Demo Admin', email: 'demo@pos-enterprise.com', role: 'admin', branchId: 'br1' },
+      { id: 'u2', name: 'Kasir 1', email: 'kasir1@demo.com', role: 'kasir', branchId: 'br1' },
+    ];
+    renderProducts(); updateStats(); refreshCategories(); renderCart();
+    renderProductTable(); renderStockPanel();
+    initReportDates();
+    return;
+  }
   currentUser = { email: 'demo@pos-enterprise.com', uid: 'demo' };
   userProfile = { name: 'Demo Admin', role: 'admin', branchId: null };
   document.getElementById('user-name').textContent = 'Demo Admin';
