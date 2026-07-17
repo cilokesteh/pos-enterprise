@@ -86,13 +86,13 @@ const CONFIG = {
     // Firebase — isi dari Console → Project Settings → Web App
     // Demo mode (index.html?demo=1) tidak butuh Firebase config valid
     firebase: {
-        // TEMP for demo: shared with master-pos (pos-warung-salem). Replace with dedicated enterprise project later.
-        apiKey:            'AIzaSyAnnCmMT3vV-7Qx9HR3ww1sZ7h_MVh6geo',
-        authDomain:        'pos-warung-salem.firebaseapp.com',
-        projectId:         'pos-warung-salem',
-        storageBucket:     'pos-warung-salem.firebasestorage.app',
-        messagingSenderId: '85046866660',
-        appId:             '1:85046866660:web:39960723ef60b288db72f1',
+        apiKey:            "AIzaSyAkT2GTAdY1fMg6V4Qgr2V6rbGzFhGPl5Y",
+        authDomain:        "pos-enterprise-9fcac.firebaseapp.com",
+        projectId:         "pos-enterprise-9fcac",
+        storageBucket:     "pos-enterprise-9fcac.firebasestorage.app",
+        messagingSenderId: "76067310268",
+        appId:             "1:76067310268:web:faaa556d1806da81c21eb9",
+        measurementId:     "G-DGVY9VZ8VT",
     },
 
     receipt: {
