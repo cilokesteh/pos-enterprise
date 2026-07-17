@@ -602,7 +602,7 @@
       <button type="button" onclick="hardRefresh()" class="btn-ghost w-full py-2 text-xs">
         <i class="fa-solid fa-rotate-right mr-1"></i>Refresh app
       </button>
-      <div class="text-[10px] text-[var(--pos-text-muted)] text-center select-none">v1.6 pull-refresh</div>
+      <div class="text-[10px] text-[var(--pos-text-muted)] text-center select-none">v1.7 reports</div>
     </div>
   </aside>
 
@@ -759,13 +759,27 @@
         <div class="page-header">
           <h1 class="text-lg font-semibold page-title">Laporan</h1>
           <div class="page-tools">
-            <input type="date" id="report-from" class="input px-3 py-2 text-sm">
-            <span class="text-[var(--pos-text-muted)] text-xs">s/d</span>
-            <input type="date" id="report-to" class="input px-3 py-2 text-sm">
-            <button onclick="loadReports()" class="btn-ghost px-3 py-2 text-sm">Filter</button>
-            <button onclick="exportExcel()" class="btn-primary px-3 py-2 text-sm"><i class="fa-solid fa-file-excel mr-1"></i>Excel</button>
+            <select id="report-period" class="input px-3 py-2 text-sm" onchange="onReportPeriodChange()">
+              <option value="harian">Harian</option>
+              <option value="mingguan">Mingguan</option>
+              <option value="bulanan">Bulanan</option>
+              <option value="tahunan">Tahunan</option>
+              <option value="terlaris">Terlaris</option>
+              <option value="custom">Custom</option>
+            </select>
+            <button onclick="shiftReport(-1)" class="btn-ghost px-3 py-2 text-sm" title="Sebelumnya"><i class="fa-solid fa-chevron-left"></i></button>
+            <button onclick="shiftReport(1)" class="btn-ghost px-3 py-2 text-sm" title="Berikutnya"><i class="fa-solid fa-chevron-right"></i></button>
+            <span id="report-range-label" class="text-[var(--pos-text-muted)] text-xs font-medium"></span>
           </div>
         </div>
+
+        <div id="report-custom-dates" class="page-tools" style="display:none">
+          <input type="date" id="report-from" class="input px-3 py-2 text-sm">
+          <span class="text-[var(--pos-text-muted)] text-xs">s/d</span>
+          <input type="date" id="report-to" class="input px-3 py-2 text-sm">
+          <button onclick="loadReports()" class="btn-ghost px-3 py-2 text-sm">Filter</button>
+        </div>
+
         <div class="stats-grid" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.75rem">
           <div class="surface p-3"><div class="text-[11px] text-[var(--pos-text-tertiary)]">Transaksi</div><div class="text-lg font-semibold" id="r-tx">0</div></div>
           <div class="surface p-3"><div class="text-[11px] text-[var(--pos-text-tertiary)]">Omzet</div><div class="text-lg font-semibold text-accent" id="r-omzet">Rp 0</div></div>
@@ -773,11 +787,17 @@
           <div class="surface p-3"><div class="text-[11px] text-[var(--pos-text-tertiary)]">Profit</div><div class="text-lg font-semibold text-[var(--pos-success)]" id="r-profit">Rp 0</div></div>
           <div class="surface p-3" style="grid-column:1/-1"><div class="text-[11px] text-[var(--pos-text-tertiary)]">Rata-rata</div><div class="text-lg font-semibold" id="r-avg">Rp 0</div></div>
         </div>
+
+        <div class="page-tools justify-between">
+          <span id="report-tab-title" class="text-sm font-medium">Laporan Harian</span>
+          <button onclick="exportReportExcel()" class="btn-primary px-3 py-2 text-sm"><i class="fa-solid fa-file-excel mr-1"></i>Download Excel</button>
+        </div>
+
         <div class="page-body scroll-thin">
           <div class="table-wrap">
             <table class="data w-full">
               <thead>
-                <tr>
+                <tr id="report-thead">
                   <th>No Struk</th><th>Tanggal</th><th>Kasir</th><th>Customer</th><th>Metode</th><th>Total</th><th>Profit</th>
                 </tr>
               </thead>
@@ -2003,104 +2023,229 @@ async function sendReceiptToWA() {
 }
 
 /* Reports */
+window.reportPeriod = 'harian';
+window.reportAnchor = new Date();
+
 function initReportDates() {
-  const to = new Date();
-  const from = new Date(); from.setDate(from.getDate()-7);
-  document.getElementById('report-to').value = to.toISOString().slice(0,10);
-  document.getElementById('report-from').value = from.toISOString().slice(0,10);
+  // anchor = today; period handled by loadReports
+  window.reportAnchor = new Date();
 }
 
-async function loadReports() {
-  const from = document.getElementById('report-from').value;
-  const to = document.getElementById('report-to').value;
-  if (!from || !to) return;
-  const start = new Date(from + 'T00:00:00').getTime();
-  const end = new Date(to + 'T23:59:59').getTime();
-  // current product costs for profit
+function iso(d) { return d.toISOString().slice(0,10); }
+
+function periodRange(period, anchor) {
+  const a = new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate());
+  if (period === 'harian') {
+    return { start: new Date(a).setHours(0,0,0,0), end: new Date(a).setHours(23,59,59,999), label: a.toLocaleDateString('id-ID',{weekday:'long',day:'numeric',month:'long',year:'numeric'}) };
+  }
+  if (period === 'mingguan') {
+    const day = a.getDay() || 7;
+    const mon = new Date(a); mon.setDate(a.getDate() - (day-1));
+    const sun = new Date(mon); sun.setDate(mon.getDate()+6);
+    return { start: new Date(mon).setHours(0,0,0,0), end: new Date(sun).setHours(23,59,59,999), label: `Minggu ${mon.toLocaleDateString('id-ID',{day:'numeric',month:'short'})} – ${sun.toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'})}` };
+  }
+  if (period === 'bulanan') {
+    const start = new Date(a.getFullYear(), a.getMonth(), 1);
+    const end = new Date(a.getFullYear(), a.getMonth()+1, 0, 23,59,59,999);
+    return { start: start.getTime(), end: end.getTime(), label: a.toLocaleDateString('id-ID',{month:'long',year:'numeric'}) };
+  }
+  if (period === 'tahunan') {
+    const start = new Date(a.getFullYear(), 0, 1);
+    const end = new Date(a.getFullYear(), 11, 31, 23,59,59,999);
+    return { start: start.getTime(), end: end.getTime(), label: `Tahun ${a.getFullYear()}` };
+  }
+  return null; // terlaris / custom
+}
+
+function onReportPeriodChange() {
+  window.reportPeriod = document.getElementById('report-period').value;
+  const customBox = document.getElementById('report-custom-dates');
+  customBox.style.display = (window.reportPeriod === 'custom') ? 'flex' : 'none';
+  window.reportAnchor = new Date();
+  loadReports();
+}
+
+function shiftReport(dir) {
+  if (window.reportPeriod === 'harian') window.reportAnchor.setDate(window.reportAnchor.getDate()+dir);
+  else if (window.reportPeriod === 'mingguan') window.reportAnchor.setDate(window.reportAnchor.getDate()+dir*7);
+  else if (window.reportPeriod === 'bulanan') window.reportAnchor.setMonth(window.reportAnchor.getMonth()+dir);
+  else if (window.reportPeriod === 'tahunan') window.reportAnchor.setFullYear(window.reportAnchor.getFullYear()+dir);
+  else return;
+  loadReports();
+}
+
+// Build a unified transaction list from Firestore or demo
+async function loadTransactionsInRange(start, end) {
   const prodCost = {};
   products.forEach(p => { if (p.name) prodCost[p.name] = p.costPrice || 0; });
   window._currentProductCost = prodCost;
 
   if (DEMO || !db) {
-    // sample report rows for client presentation
-    reportRows = [
-      { id: 'd1', invoice: 'INV-DEMO-001', total: 2535000, method: 'cash', createdAt: Date.now()-86400000, items: [{name:'Samsung A15 8/128', qty:1, price:2450000, costPrice:2200000},{name:'Charger 25W Type-C', qty:1, price:85000, costPrice:45000}] },
-      { id: 'd2', invoice: 'INV-DEMO-002', total: 4500000, method: 'qris', createdAt: Date.now()-3600000, items: [{name:'iPhone 11 64GB', qty:1, price:4500000, costPrice:4100000}] },
-      { id: 'd3', invoice: 'INV-DEMO-003', total: 230000, method: 'transfer', createdAt: Date.now()-1800000, items: [{name:'Powerbank 10000mAh', qty:1, price:175000, costPrice:120000},{name:'Tempered Glass Universal', qty:1, price:25000, costPrice:8000},{name:'Kabel USB-C 1m', qty:1, price:35000, costPrice:15000}] },
-    ];
-    let omzet = 0, modal = 0;
-    reportRows.forEach(d => {
-      omzet += d.total || 0;
-      modal += (d.items||[]).reduce((s,it) => s + (prodCost[it.name]||0) * (it.qty||0), 0);
+    return [
+      { id: 'd1', invoice: 'INV-DEMO-001', total: 2535000, method: 'cash', createdAt: Date.now()-86400000, customerName:'Budi', kasirName:'Demo Admin', items: [{name:'Samsung A15 8/128', qty:1, price:2450000, costPrice:2200000},{name:'Charger 25W Type-C', qty:1, price:85000, costPrice:45000}] },
+      { id: 'd2', invoice: 'INV-DEMO-002', total: 4500000, method: 'qris', createdAt: Date.now()-3600000, customerName:'Sari', kasirName:'Demo Admin', items: [{name:'iPhone 11 64GB', qty:1, price:4500000, costPrice:4100000}] },
+      { id: 'd3', invoice: 'INV-DEMO-003', total: 230000, method: 'transfer', createdAt: Date.now()-1800000, customerName:'Andi', kasirName:'Demo Admin', items: [{name:'Powerbank 10000mAh', qty:1, price:175000, costPrice:120000},{name:'Tempered Glass Universal', qty:1, price:25000, costPrice:8000},{name:'Kabel USB-C 1m', qty:1, price:35000, costPrice:15000}] },
+      { id: 'd4', invoice: 'INV-DEMO-004', total: 2450000, method: 'cash', createdAt: Date.now()-7200000, customerName:'Joko', kasirName:'Demo Admin', items: [{name:'Samsung A15 8/128', qty:1, price:2450000, costPrice:2200000}] },
+    ].filter(t => t.createdAt >= start && t.createdAt <= end).map(t => {
+      const m = (t.items||[]).reduce((s,it)=> s + (prodCost[it.name]||it.costPrice||0)*(it.qty||0),0);
+      return { ...t, _modal: m, _profit: (t.total||0) - m };
     });
-    document.getElementById('r-tx').textContent = reportRows.length;
-    document.getElementById('r-omzet').textContent = fmt(omzet);
-    document.getElementById('r-modal').textContent = fmt(modal);
-    document.getElementById('r-profit').textContent = fmt(omzet - modal);
-    document.getElementById('r-avg').textContent = fmt(reportRows.length ? Math.round(omzet/reportRows.length) : 0);
-    const tb = document.getElementById('report-table-body');
-    if (tb) tb.innerHTML = reportRows.map(r => {
-      const d = new Date(r.createdAt);
-      const m = (r.items||[]).reduce((s,it) => s + (prodCost[it.name]||0) * (it.qty||0), 0);
-      return `<tr>
-        <td class="font-mono text-xs">${esc(r.invoice)}</td>
-        <td>${d.toLocaleDateString('id-ID')} ${d.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'})}</td>
-        <td>Demo Admin</td>
-        <td>—</td>
-        <td>${esc((r.method||'').toUpperCase())}</td>
-        <td>${fmt(r.total)}</td>
-        <td class="text-[var(--pos-success)]">${fmt(r.total - m)}</td>
-      </tr>`;
-    }).join('');
-    return;
   }
-
   try {
     const snap = await db.collection(col('transactions'))
       .where('createdAt', '>=', start)
       .where('createdAt', '<=', end)
       .orderBy('createdAt', 'desc')
       .get();
-    reportRows = [];
-    let omzet = 0, modal = 0, profit = 0;
-    snap.forEach(doc => {
+    return snap.docs.map(doc => {
       const d = doc.data();
-      const m = (d.items||[]).reduce((s,it) => {
-        const unit = prodCost[it.name] ?? it.costPrice ?? 0;
-        return s + unit * (it.qty||0);
-      }, 0);
-      const tot = d.total || 0;
-      const pr = tot - m;
-      omzet += tot; modal += m; profit += pr;
-      reportRows.push({ id: doc.id, ...d, _modal: m, _profit: pr });
+      const m = (d.items||[]).reduce((s,it)=>{ const u = prodCost[it.name] ?? it.costPrice ?? 0; return s + u*(it.qty||0); },0);
+      return { id: doc.id, ...d, _modal: m, _profit: (d.total||0) - m };
     });
-    document.getElementById('r-tx').textContent = reportRows.length;
-    document.getElementById('r-omzet').textContent = fmt(omzet);
-    document.getElementById('r-modal').textContent = fmt(modal);
-    document.getElementById('r-profit').textContent = fmt(profit);
-    document.getElementById('r-avg').textContent = fmt(reportRows.length ? Math.round(omzet/reportRows.length) : 0);
-    const tb = document.getElementById('report-table-body');
-    tb.innerHTML = reportRows.map(r => {
-      const d = new Date(r.createdAt);
-      return `<tr>
-        <td class="font-mono text-xs">${esc(receiptNo(r))}</td>
-        <td>${d.toLocaleDateString('id-ID')} ${d.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'})}</td>
-        <td>${esc(r.kasirName||'—')}</td>
-        <td>${esc(r.customerName||'—')}</td>
-        <td>${esc((r.method||'').toUpperCase())}</td>
-        <td>${fmt(r.total)}</td>
-        <td class="text-[var(--pos-success)]">${fmt(r._profit)}</td>
-      </tr>`;
-    }).join('') || '<tr><td colspan="7" class="text-center py-8 text-[var(--pos-text-muted)]">Tidak ada data</td></tr>';
   } catch (e) {
     console.error(e);
     alert('Gagal load laporan. Pastikan index Firestore createdAt sudah dibuat. ' + e.message);
+    return [];
   }
 }
 
-function exportExcel() {
-  if (!reportRows.length) return alert('Tidak ada data untuk diexport');
-  const data = reportRows.map((r, i) => {
+function computeTotals(rows) {
+  let omzet=0, modal=0, profit=0;
+  rows.forEach(r => { omzet += r.total||0; modal += r._modal||0; profit += r._profit||0; });
+  return { omzet, modal, profit, count: rows.length };
+}
+
+function renderReportTable(rows) {
+  const tb = document.getElementById('report-table-body');
+  if (!tb) return;
+  if (!rows.length) {
+    tb.innerHTML = '<tr><td colspan="7" class="text-center py-8 text-[var(--pos-text-muted)]">Tidak ada data</td></tr>';
+    return;
+  }
+  tb.innerHTML = rows.map(r => {
+    const d = new Date(r.createdAt);
+    return `<tr>
+      <td class="font-mono text-xs">${esc(receiptNo(r))}</td>
+      <td>${d.toLocaleDateString('id-ID')} ${d.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'})}</td>
+      <td>${esc(r.kasirName||'—')}</td>
+      <td>${esc(r.customerName||'—')}</td>
+      <td>${esc((r.method||'').toUpperCase())}</td>
+      <td>${fmt(r.total)}</td>
+      <td class="text-[var(--pos-success)]">${fmt(r._profit)}</td>
+    </tr>`;
+  }).join('');
+}
+
+function renderBestSeller(rows) {
+  const map = {};
+  rows.forEach(r => (r.items||[]).forEach(it => {
+    const k = it.name;
+    if (!map[k]) map[k] = { name:k, qty:0, omzet:0, modal:0, category: it.category||'' };
+    map[k].qty += (it.qty||0);
+    map[k].omzet += (it.price||it.costPrice||0)*(it.qty||0);
+    map[k].modal += (it.costPrice||0)*(it.qty||0);
+  }));
+  const list = Object.values(map).sort((a,b)=> b.qty-a.qty);
+  const tb = document.getElementById('report-table-body');
+  if (!tb) return;
+  if (!list.length) { tb.innerHTML = '<tr><td colspan="7" class="text-center py-8 text-[var(--pos-text-muted)]">Tidak ada data</td></tr>'; return; }
+  document.getElementById('report-thead').innerHTML = '<th>#</th><th>Produk</th><th>Tipe</th><th>Qty Terjual</th><th>Omzet</th><th>Modal</th><th>Profit</th>';
+  tb.innerHTML = list.map((p,i) => `
+    <tr>
+      <td class="font-medium">${i+1}</td>
+      <td>${esc(p.name)}</td>
+      <td><span class="badge ${p.category==='HP'?'badge-ok':'badge-warn'}">${esc(p.category||'—')}</span></td>
+      <td class="num">${p.qty}</td>
+      <td class="num">${fmt(p.omzet)}</td>
+      <td class="num">${fmt(p.modal)}</td>
+      <td class="num text-[var(--pos-success)]">${fmt(p.omzet - p.modal)}</td>
+    </tr>`).join('');
+}
+
+// store current rows for export
+let _currentReportRows = [];
+let _currentReportTitle = 'Laporan';
+
+async function loadReports() {
+  const thead = document.getElementById('report-thead');
+  if (window.reportPeriod === 'terlaris') {
+    thead.innerHTML = '<th>#</th><th>Produk</th><th>Tipe</th><th>Qty Terjual</th><th>Omzet</th><th>Modal</th><th>Profit</th>';
+    document.getElementById('report-tab-title').textContent = 'Produk Terlaris';
+    document.getElementById('report-range-label').textContent = 'Periode: 30 hari terakhir';
+    // best seller over last 30 days
+    const end = Date.now();
+    const start = end - 30*86400000;
+    const rows = await loadTransactionsInRange(start, end);
+    const t = computeTotals(rows);
+    setReportStats(t);
+    renderBestSeller(rows);
+    _currentReportRows = rows;
+    _currentReportTitle = 'Terlaris';
+    return;
+  }
+
+  let start, end, label;
+  if (window.reportPeriod === 'custom') {
+    const f = document.getElementById('report-from').value;
+    const t = document.getElementById('report-to').value;
+    if (!f || !t) { setReportStats({omzet:0,modal:0,profit:0,count:0}); renderReportTable([]); return; }
+    start = new Date(f+'T00:00:00').getTime();
+    end = new Date(t+'T23:59:59').getTime();
+    label = `${f} s/d ${t}`;
+  } else {
+    const rg = periodRange(window.reportPeriod, window.reportAnchor);
+    start = rg.start; end = rg.end; label = rg.label;
+  }
+  const titles = { harian:'Laporan Harian', mingguan:'Laporan Mingguan', bulanan:'Laporan Bulanan', tahunan:'Laporan Tahunan', custom:'Laporan Custom' };
+  thead.innerHTML = '<th>No Struk</th><th>Tanggal</th><th>Kasir</th><th>Customer</th><th>Metode</th><th>Total</th><th>Profit</th>';
+  document.getElementById('report-tab-title').textContent = titles[window.reportPeriod] || 'Laporan';
+  document.getElementById('report-range-label').textContent = label;
+  const rows = await loadTransactionsInRange(start, end);
+  const t = computeTotals(rows);
+  setReportStats(t);
+  renderReportTable(rows);
+  _currentReportRows = rows;
+  _currentReportTitle = (titles[window.reportPeriod] || 'Laporan');
+}
+
+function setReportStats(t) {
+  document.getElementById('r-tx').textContent = t.count;
+  document.getElementById('r-omzet').textContent = fmt(t.omzet);
+  document.getElementById('r-modal').textContent = fmt(t.modal);
+  document.getElementById('r-profit').textContent = fmt(t.profit);
+  document.getElementById('r-avg').textContent = fmt(t.count ? Math.round(t.omzet/t.count) : 0);
+}
+
+function exportReportExcel() {
+  if (window.reportPeriod === 'terlaris') {
+    const map = {};
+    _currentReportRows.forEach(r => (r.items||[]).forEach(it => {
+      const k = it.name;
+      if (!map[k]) map[k] = { name:k, category: it.category||'', qty:0, omzet:0, modal:0 };
+      map[k].qty += (it.qty||0);
+      map[k].omzet += (it.price||it.costPrice||0)*(it.qty||0);
+      map[k].modal += (it.costPrice||0)*(it.qty||0);
+    }));
+    const list = Object.values(map).sort((a,b)=> b.qty-a.qty);
+    if (!list.length) return alert('Tidak ada data untuk diexport');
+    const data = list.map((p,i)=>({
+      'Peringkat': i+1,
+      'Produk': p.name,
+      'Tipe': p.category,
+      'Qty Terjual': p.qty,
+      'Omzet': p.omzet,
+      'Modal': p.modal,
+      'Profit': p.omzet - p.modal,
+    }));
+    data.push({ 'Peringkat':'', 'Produk':'TOTAL', 'Tipe':'', 'Qty Terjual': list.reduce((s,p)=>s+p.qty,0), 'Omzet': list.reduce((s,p)=>s+p.omzet,0), 'Modal': list.reduce((s,p)=>s+p.modal,0), 'Profit': list.reduce((s,p)=>s+(p.omzet-p.modal),0) });
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Terlaris');
+    XLSX.writeFile(wb, `TERLARIS-${CONFIG.storeName.replace(/\s+/g,'_')}-${new Date().toISOString().slice(0,10)}.xlsx`);
+    return;
+  }
+  if (!_currentReportRows.length) return alert('Tidak ada data untuk diexport');
+  const data = _currentReportRows.map((r, i) => {
     const d = new Date(r.createdAt);
     return {
       'No': i+1,
@@ -2121,7 +2266,7 @@ function exportExcel() {
   const ws = XLSX.utils.json_to_sheet(data);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Laporan');
-  XLSX.writeFile(wb, `EXPORT-${CONFIG.storeName.replace(/\s+/g,'_')}-${new Date().toISOString().slice(0,10)}.xlsx`);
+  XLSX.writeFile(wb, `EXPORT-${CONFIG.storeName.replace(/\s+/g,'_')}-${window.reportPeriod}-${new Date().toISOString().slice(0,10)}.xlsx`);
 }
 
 /* Branches & Users */
