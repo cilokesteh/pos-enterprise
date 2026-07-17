@@ -63,10 +63,7 @@
                  class="input w-full px-3 py-3 mt-1 text-sm" placeholder="••••••••">
         </div>
         <button type="submit" id="login-btn" class="btn w-full py-3 text-sm mt-2">
-            Login
-        </button>
-        <button type="button" id="demo-btn" class="btn-ghost w-full py-3 text-sm mt-2" onclick="enterDemo()">
-            Masuk Demo
+          Login
         </button>
       </form>
       <div id="error" class="hidden mt-4 text-center text-sm" style="color:#f87171"></div>
@@ -162,7 +159,7 @@ document.addEventListener('DOMContentLoaded', () => {
       } else if (code === 'auth/too-many-requests') {
         err.textContent = 'Terlalu banyak percobaan. Coba lagi nanti.';
       } else if (code === 'auth/api-key-not-valid' || String(error.message||'').includes('api-key-not-valid')) {
-        err.textContent = 'API key Firebase tidak valid. Hard-refresh (Ctrl+Shift+R) atau pakai Masuk Demo.';
+        err.textContent = 'API key Firebase tidak valid. Hard-refresh (Ctrl+Shift+R) lalu coba lagi.';
       } else {
         err.textContent = 'Error: ' + (code || error.message);
       }
@@ -170,13 +167,6 @@ document.addEventListener('DOMContentLoaded', () => {
       btn.disabled = false;
       btn.textContent = 'Login';
     }
-  });
-
-  document.getElementById('demo-btn').addEventListener('click', () => {
-    try {
-      localStorage.setItem('pos_demo', '1');
-    } catch (e) {}
-    location.href = 'index.html';
   });
 </script>
 </body>
