@@ -1949,6 +1949,38 @@ function loadStockMoves() {
     }, err => console.error(err));
 }
 
+
+function resetStockData() {
+  if (!confirm('Hapus SEMUA produk, stok, mutasi, dan riwayat? Aksi ini tidak bisa dibatalkan.')) return;
+  products = [];
+  stockMoves = [];
+  transactions = [];
+  if (typeof saveDemoData === 'function') saveDemoData();
+  renderProducts(); renderProductTable(); updateStats(); renderStockPanel(); loadHistory(); loadReports();
+  showToast('Semua data stok & riwayat telah dihapus');
+}
+
+
+function showImeiPool(productId) {
+  const p = products.find(x => x.id === productId);
+  if (!p) return;
+  const pool = (p.imeiPool || []).join('\n');
+  const modal = document.getElementById('imei-pool-modal');
+  const content = document.getElementById('imei-pool-content');
+  document.getElementById('imei-pool-title').textContent = 'IMEI/SN — ' + p.name;
+  content.textContent = pool || 'Belum ada IMEI/SN';
+  modal.classList.remove('hidden');
+}
+
+function hideImeiPool() {
+  document.getElementById('imei-pool-modal').classList.add('hidden');
+}
+
+function copyImeiPool() {
+  const text = document.getElementById('imei-pool-content').textContent || '';
+  navigator.clipboard.writeText(text).then(() => showToast('IMEI/SN disalin ke clipboard'));
+}
+
 function renderStockPanel() {
   const units = products.reduce((s,p) => s + (p.stock||0), 0);
   const low = products.filter(p => (p.stock||0) < 5).length;
