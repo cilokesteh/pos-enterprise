@@ -632,7 +632,7 @@
       <button type="button" onclick="hardRefresh()" class="btn-ghost w-full py-2 text-xs">
         <i class="fa-solid fa-rotate-right mr-1"></i>Refresh app
       </button>
-      <div class="text-[10px] text-[var(--pos-text-muted)] text-center select-none">v1.7 reports</div>
+      <div class="text-[10px] text-[var(--pos-text-muted)] text-center select-none">v2.1 stock-fix</div>
     </div>
   </aside>
 
@@ -682,16 +682,26 @@
             <div class="text-xl font-semibold mt-0.5 text-[var(--pos-warning)]" id="stat-low">0</div>
           </div>
         </div>
-        <div id="pos-toolbar">
-          <div class="relative flex-1 min-w-0">
-            <i class="fa-solid fa-search absolute left-3 top-1/2 -translate-y-1/2 text-[var(--pos-text-muted)] text-xs"></i>
-            <input id="search-product" type="text" placeholder="Cari produk / SKU…" class="input w-full pl-9 pr-3 py-2.5 text-sm" oninput="filterProducts()">
+        <!-- IMEI Scanner: scan/input IMEI/SN → produk muncul -->
+        <div id="pos-scanner" class="flex-1 1 auto min-h-0 flex flex-col gap-3 p-1">
+          <div class="surface p-4">
+            <label class="text-xs text-[var(--pos-text-tertiary)]">Scan / Input IMEI atau SN</label>
+            <div class="flex gap-2 mt-1">
+              <input id="imei-scan" type="text" autocomplete="off" placeholder="Scan atau ketik IMEI / SN…" class="input flex-1 px-3 py-3 text-sm font-mono" onkeydown="if(event.key==='Enter')scanImei()">
+              <button onclick="scanImei()" class="btn-primary px-4 py-3 text-sm"><i class="fa-solid fa-barcode"></i></button>
+            </div>
+            <div id="scan-result" class="mt-3"></div>
           </div>
-          <select id="cat-filter" class="input px-3 py-2.5 text-sm" onchange="setCategoryFilter(this.value)">
-            <option value="all">Semua tipe</option>
-          </select>
+          <div class="surface p-4 flex-1 min-h-0 overflow-auto">
+            <div class="text-xs text-[var(--pos-text-tertiary)] mb-2">Cara kerja:</div>
+            <ol class="text-xs text-[var(--pos-text-secondary)] list-decimal list-inside space-y-1">
+              <li>Scan atau input IMEI/SN → produk otomatis muncul</li>
+              <li>Isi Harga Jual → klik Tambah ke Keranjang</li>
+              <li>Ulangi untuk item lain, lalu Bayar</li>
+            </ol>
+            <div class="mt-4 text-[11px] text-[var(--pos-text-muted)]">Stok device dengan IMEI tersimpan: <span id="imei-count">0</span></div>
+          </div>
         </div>
-        <div id="product-grid" class="scroll-thin"></div>
       </div>
       <!-- Cart panel -->
       <aside id="cart-panel">
@@ -723,8 +733,8 @@
           <h1 class="text-lg font-semibold page-title">Manajemen Produk · Toko HP</h1>
           <div class="page-tools">
             <button onclick="showStockModal('in')" class="btn-ghost px-3 py-2 text-sm"><i class="fa-solid fa-arrow-down mr-1"></i>Stok Masuk</button>
-            <button onclick="showStockModal('out')" class="btn-ghost px-3 py-2 text-sm"><i class="fa-solid fa-arrow-up mr-1"></i>Stok Keluar</button>
-            <button onclick="alert('Produk otomatis dibuat dari Stok Masuk. Klik Stok Masuk → isi data → simpan, lalu edit Harga Jual di sini.')" class="btn-primary px-4 py-2 text-sm" title="Produk lahir dari Stok Masuk"><i class="fa-solid fa-plus mr-1"></i>Tambah</button>
+            <button onclick="showStockModal('out')" class="btn-ghost px-3 py-2 text-sm"><i class="fa-solid fa-arrow-up mr-1"></i>Retur</button>
+            <span class="text-[10px] text-[var(--pos-text-muted)] hidden sm:inline">Produk otomatis dari Restock</span>
           </div>
         </div>
         <div class="page-tools">
@@ -758,8 +768,8 @@
         <div class="page-header">
           <h1 class="text-lg font-semibold page-title">Kontrol Stok</h1>
           <div class="page-tools">
-            <button onclick="showStockModal('in')" class="btn-primary px-3 py-2 text-sm"><i class="fa-solid fa-arrow-down mr-1"></i>Barang Masuk</button>
-            <button onclick="showStockModal('out')" class="btn-ghost px-3 py-2 text-sm"><i class="fa-solid fa-arrow-up mr-1"></i>Barang Keluar</button>
+            <button onclick="showStockModal('restock')" class="btn-primary px-3 py-2 text-sm"><i class="fa-solid fa-arrow-down mr-1"></i>Restock</button>
+            <button onclick="showStockModal('retur')" class="btn-ghost px-3 py-2 text-sm"><i class="fa-solid fa-arrow-up mr-1"></i>Retur ke Cabang</button>
           </div>
         </div>
         <div class="stats-grid" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.75rem">
@@ -971,18 +981,14 @@
 <!-- STOCK MODAL -->
 <div id="stock-modal" class="hidden fixed inset-0 modal-backdrop z-50 flex items-center justify-center p-4">
   <div class="modal-box w-full max-w-md p-6">
-    <h3 class="font-semibold text-base mb-4" id="stock-modal-title">Stok Masuk</h3>
+    <h3 class="font-semibold text-base mb-4" id="stock-modal-title">Restock Barang</h3>
     <div class="space-y-3">
-      <div>
-        <label class="text-xs text-[var(--pos-text-tertiary)]">Produk</label>
-        <select id="sm-product" class="input w-full px-3 py-2.5 text-sm mt-1"></select>
-      </div>
       <div class="grid grid-cols-2 gap-3">
         <div>
-          <label class="text-xs text-[var(--pos-text-tertiary)]">Arah</label>
-          <select id="sm-dir" class="input w-full px-3 py-2.5 text-sm mt-1" onchange="onStockDirChange()">
-            <option value="in">Masuk (+)</option>
-            <option value="out">Keluar (−)</option>
+          <label class="text-xs text-[var(--pos-text-tertiary)]">Tipe Mutasi</label>
+          <select id="sm-type" class="input w-full px-3 py-2.5 text-sm mt-1" onchange="onStockTypeChange()">
+            <option value="restock">Restock (Masuk +Stok)</option>
+            <option value="retur">Retur ke Cabang (Keluar)</option>
           </select>
         </div>
         <div>
@@ -990,27 +996,48 @@
           <input id="sm-qty" type="number" min="1" class="input w-full px-3 py-2.5 text-sm mt-1" value="1">
         </div>
       </div>
-      <div id="sm-cost-wrap" style="display:none">
-        <label class="text-xs text-[var(--pos-text-tertiary)]">Harga Modal / Beli (Rp) — untuk produk baru / update HPP</label>
+      <div>
+        <label class="text-xs text-[var(--pos-text-tertiary)]">Produk</label>
+        <select id="sm-product" class="input w-full px-3 py-2.5 text-sm mt-1"></select>
+      </div>
+      <div id="sm-cost-wrap">
+        <label class="text-xs text-[var(--pos-text-tertiary)]">Harga Modal / Beli (Rp) — wajib saat restock</label>
         <input id="sm-cost" type="number" min="0" class="input w-full px-3 py-2.5 text-sm mt-1" placeholder="Contoh: 2200000">
-        <div class="text-[10px] text-[var(--pos-text-muted)] mt-1">Kosongkan jika tidak ingin ubah harga modal. Saat produk baru dibuat dari sini, ini jadi HPP-nya.</div>
       </div>
       <div>
-        <label class="text-xs text-[var(--pos-text-tertiary)]">IMEI (opsional, 1 per baris — untuk HP/device)</label>
-        <textarea id="sm-imei" rows="3" class="input w-full px-3 py-2 text-sm mt-1 font-mono" placeholder="356938000000001
-356938000000002
-... (satu IMEI per baris, boleh kosong)"></textarea>
-        <div class="text-[10px] text-[var(--pos-text-muted)] mt-1">Jumlah IMEI = qty jika diisi. IMEI otomatis muncul di struk saat terjual.</div>
+        <label class="text-xs text-[var(--pos-text-tertiary)]">IMEI / SN (1 per baris — <b>wajib</b> device, SN untuk aksesoris)</label>
+        <textarea id="sm-imei" rows="3" class="input w-full px-3 py-2 text-sm mt-1 font-mono" placeholder="356938000000001&#10;356938000000002&#10;... (satu per baris, jumlah = qty)"></textarea>
+        <div class="text-[10px] text-[var(--pos-text-muted)] mt-1" id="sm-imei-hint">IMEI wajib untuk HP/device. SN wajib untuk aksesoris. Jumlah = qty.</div>
       </div>
       <div>
-        <label class="text-xs text-[var(--pos-text-tertiary)]">Catatan / referensi</label>
-        <input id="sm-note" class="input w-full px-3 py-2.5 text-sm mt-1" placeholder="Supplier / rusak / transfer cabang…">
+        <label class="text-xs text-[var(--pos-text-tertiary)]">Catatan</label>
+        <input id="sm-note" class="input w-full px-3 py-2.5 text-sm mt-1" placeholder="Supplier / retur cabang...">
       </div>
       <div class="text-xs text-[var(--pos-text-muted)]" id="sm-stock-hint">Stok saat ini: —</div>
     </div>
     <div class="flex gap-2 mt-5">
       <button onclick="hideStockModal()" class="btn-ghost flex-1 py-2.5 text-sm">Batal</button>
-      <button onclick="saveStockMove()" class="btn-primary flex-1 py-2.5 text-sm">Simpan Mutasi</button>
+      <button onclick="saveStockMove()" class="btn-primary flex-1 py-2.5 text-sm" id="sm-save-btn">Simpan</button>
+    </div>
+  </div>
+</div>
+
+<!-- IMEI MODAL (kasir: input IMEI saat pilih HP) -->
+<div id="imei-modal" class="hidden fixed inset-0 modal-backdrop z-50 flex items-center justify-center p-4">
+  <div class="modal-box w-full max-w-md p-6">
+    <h3 class="font-semibold text-base mb-2" id="imei-modal-title">Input IMEI</h3>
+    <div class="text-xs text-[var(--pos-text-tertiary)] mb-3" id="imei-modal-hint">Pilih produk HP untuk input IMEI</div>
+    <div class="space-y-3">
+      <div>
+        <label class="text-xs text-[var(--pos-text-tertiary)]">IMEI (1 per baris, harus sesuai stok)</label>
+        <textarea id="imei-input" rows="5" class="input w-full px-3 py-2 text-sm mt-1 font-mono" placeholder="356938000000001
+356938000000002"></textarea>
+        <div class="text-[10px] text-[var(--pos-text-muted)] mt-1" id="imei-pool-hint">Stok IMEI tersedia: 0</div>
+      </div>
+    </div>
+    <div class="flex gap-2 mt-5">
+      <button onclick="hideImeiModal()" class="btn-ghost flex-1 py-2.5 text-sm">Batal</button>
+      <button onclick="confirmImei()" class="btn-primary flex-1 py-2.5 text-sm">Simpan IMEI</button>
     </div>
   </div>
 </div>
@@ -1507,6 +1534,47 @@ function addToCart(id) {
   renderCart();
 }
 
+function scanImei() {
+  const raw = document.getElementById('imei-scan').value.trim();
+  const res = document.getElementById('scan-result');
+  if (!raw) { res.innerHTML = '<div class="text-xs text-[var(--pos-warning)]">Masukkan IMEI/SN</div>'; return; }
+  // Find product with this IMEI in pool
+  const found = products.find(p => (p.imeiPool||[]).includes(raw));
+  if (!found) {
+    res.innerHTML = `<div class="text-xs text-[var(--pos-error)]">IMEI/SN tidak ditemukan di stok. Cek kembali atau lakukan Restock dulu.</div>`;
+    return;
+  }
+  if ((found.stock||0) <= 0) {
+    res.innerHTML = `<div class="text-xs text-[var(--pos-warning)]">Stok habis untuk ${esc(found.name)}</div>`;
+    return;
+  }
+  // Show product card with price input
+  res.innerHTML = `
+    <div class="surface p-3" id="scan-card">
+      <div class="font-medium text-sm">${esc(found.name)}</div>
+      <div class="text-[11px] text-[var(--pos-text-muted)]">${esc(found.category||'')} · ${esc(found.brand||'')} · Stok ${found.stock}</div>
+      <div class="text-[11px] text-[var(--pos-text-muted)] font-mono mt-0.5">IMEI: ${esc(raw)}</div>
+      <div class="flex gap-2 mt-2">
+        <input id="scan-price" type="number" min="0" class="input flex-1 px-2 py-2 text-sm" placeholder="Harga Jual">
+        <button onclick="addScannedToCart('${found.id}','${esc(raw)}')" class="btn-primary px-3 py-2 text-sm">+ Keranjang</button>
+      </div>
+    </div>`;
+  setTimeout(()=>{ const el=document.getElementById('scan-price'); if(el) el.focus(); }, 50);
+}
+function addScannedToCart(id, imei) {
+  const p = products.find(x => x.id === id);
+  if (!p) return;
+  const price = parseInt(document.getElementById('scan-price').value);
+  if (isNaN(price) || price < 0) return alert('Isi Harga Jual');
+  // Each IMEI = 1 qty (device). For aksesoris without IMEI, fallback to normal add
+  cart.push({ id: p.id, name: p.name, price, costPrice: p.costPrice||0, category: p.category||'', stock: p.stock, qty: 1, imei: [imei] });
+  document.getElementById('imei-scan').value = '';
+  document.getElementById('scan-result').innerHTML = '';
+  renderCart();
+  showToast('Ditambahkan: ' + p.name);
+}
+
+
 function renderCart() {
   const el = document.getElementById('cart-list');
   const badge = document.getElementById('cart-badge');
@@ -1534,6 +1602,7 @@ function renderCart() {
         <button onclick="changeQty(${i},1)" class="btn-ghost w-7 h-7 text-xs">+</button>
         <button onclick="removeCart(${i})" class="ml-auto text-red-400 text-xs"><i class="fa-solid fa-times"></i></button>
       </div>
+      ${(() => { const p = products.find(x => x.id === item.id); if (p && p.hasImei) { return `<div class="mt-1.5"><button onclick="showImeiModal(${i})" class="text-[10px] px-2 py-0.5 rounded ${item.imei && item.imei.length ? 'text-[var(--pos-success)] bg-[var(--pos-success)]/10' : 'text-[var(--pos-warning)] bg-[var(--pos-warning)]/10'}">${item.imei && item.imei.length ? '✓ IMEI: ' + item.imei.length : '⚠ Input IMEI'}</button></div>`; } return ''; })()}
     </div>`;
   }).join('');
   document.getElementById('cart-total').textContent = fmt(total);
@@ -1547,6 +1616,7 @@ function renderCart() {
 
 function changeQty(i, d) {
   cart[i].qty += d;
+  if (cart[i].imei && cart[i].imei.length) { cart[i].imei = []; }
   if (cart[i].qty < 1) cart[i].qty = 1;
   const p = products.find(x => x.id === cart[i].id);
   if (p && cart[i].qty > p.stock) cart[i].qty = p.stock;
@@ -1621,6 +1691,10 @@ function showProductModal(p) {
   document.getElementById('product-modal').classList.remove('hidden');
 }
 function hideProductModal() { document.getElementById('product-modal').classList.add('hidden'); }
+function editProductById(id) {
+  const p = products.find(x => x.id === id);
+  if (p) showProductModal(p);
+}
 
 async function saveProduct() {
   const price = parseInt(document.getElementById('p-price').value);
@@ -1708,8 +1782,8 @@ function renderProductTable() {
 
 /* ── Stock control ── */
 function showStockModal(dir, productId) {
-  document.getElementById('sm-dir').value = dir === 'out' ? 'out' : 'in';
-  onStockDirChange();
+  document.getElementById('sm-type').value = dir === 'retur' ? 'retur' : 'restock';
+  onStockTypeChange();
   const sel = document.getElementById('sm-product');
   let opts = products.map(p =>
     `<option value="${p.id}">${esc(p.name)} · ${esc(p.category||'')} · stok ${p.stock||0}</option>`
@@ -1731,10 +1805,15 @@ function showToast(msg) {
   t.textContent = msg; t.style.opacity = '1';
   clearTimeout(t._timer); t._timer = setTimeout(()=>{ t.style.opacity = '0'; }, 2200);
 }
-function onStockDirChange() {
-  const d = document.getElementById('sm-dir').value;
-  document.getElementById('stock-modal-title').textContent = d === 'out' ? 'Barang Keluar' : 'Barang Masuk';
-  document.getElementById('sm-cost-wrap').style.display = d === 'out' ? 'none' : 'block';
+function onStockTypeChange() {
+  const t = document.getElementById('sm-type').value;
+  const isRetur = t === 'retur';
+  document.getElementById('stock-modal-title').textContent = isRetur ? 'Retur ke Cabang' : 'Restock Barang';
+  document.getElementById('sm-save-btn').textContent = isRetur ? 'Retur' : 'Restock';
+  document.getElementById('sm-cost-wrap').style.display = isRetur ? 'none' : 'block';
+  document.getElementById('sm-imei-hint').textContent = isRetur
+    ? 'IMEI/SN wajib diisi (sama dengan saat restock) untuk mengurangi stok.'
+    : 'IMEI wajib untuk HP/device. SN wajib untuk aksesoris. Jumlah = qty.';
   updateStockHint();
 }
 function updateStockHint() {
@@ -1747,17 +1826,17 @@ function updateStockHint() {
 
 async function saveStockMove() {
   const productId = document.getElementById('sm-product').value;
-  const dir = document.getElementById('sm-dir').value === 'out' ? 'out' : 'in';
+  const type = document.getElementById('sm-type').value === 'retur' ? 'retur' : 'restock';
+  const isRetur = type === 'retur';
   const qty = parseInt(document.getElementById('sm-qty').value, 10);
   const note = document.getElementById('sm-note').value.trim();
   let p = products.find(x => x.id === productId);
   let isNewProduct = false;
   if (productId === '__new__') {
-    // Create new product from stock data
     const nm = (document.getElementById('sm-product').selectedOptions[0].textContent || '').replace(' ➕ Produk Baru (dari stok ini)','').trim();
     const fresh = {
       id: 'p'+Date.now(), name: nm || 'Produk Baru', category: 'HP', brand: '', sku: '',
-      costPrice: cost || 0, stock: 0, price: 0, createdAt: Date.now(), updatedAt: Date.now()
+      costPrice: 0, stock: 0, price: 0, createdAt: Date.now(), updatedAt: Date.now()
     };
     if (DEMO || !db) { products.push(fresh); }
     else { await db.collection(col('products')).add(fresh); }
@@ -1766,25 +1845,36 @@ async function saveStockMove() {
   if (!p) return alert('Pilih produk');
   if (!qty || qty < 1) return alert('Jumlah minimal 1');
   const cur = p.stock || 0;
-  if (dir === 'out' && qty > cur) return alert(`Stok tidak cukup. Tersedia: ${cur}`);
-  const next = dir === 'in' ? cur + qty : cur - qty;
+  if (isRetur && qty > cur) return alert(`Stok tidak cukup untuk retur. Tersedia: ${cur}`);
+  const next = isRetur ? cur - qty : cur + qty;
+
+  // Harga modal wajib saat restock
   const costRaw = document.getElementById('sm-cost').value;
   const cost = costRaw !== '' ? parseInt(costRaw, 10) : null;
-  // IMEI parsing (optional)
+  if (!isRetur && (cost === null || isNaN(cost) || cost < 0)) return alert('Harga Modal wajib diisi saat Restock');
+
+  // IMEI / SN wajib (device OR aksesoris)
   const imeiRaw = document.getElementById('sm-imei').value.trim();
   let imeiList = imeiRaw ? imeiRaw.split(/[\r\n]+/).map(s=>s.trim()).filter(Boolean) : [];
-  if (imeiList.length && imeiList.length !== qty) {
-    return alert(`Jumlah IMEI (${imeiList.length}) harus sama dengan qty (${qty}). Atau kosongkan jika tidak pakai IMEI.`);
+  if (imeiList.length !== qty) return alert(`Jumlah IMEI/SN (${imeiList.length}) harus sama dengan qty (${qty})`);
+  // Retur: IMEI must exist in pool
+  if (isRetur) {
+    const pool = p.imeiPool || [];
+    for (const im of imeiList) {
+      if (!pool.includes(im)) return alert('IMEI/SN ' + im + ' tidak ada di stok. Cek lagi.');
+    }
   }
+
   const move = {
     productId: p.id,
     productName: p.name,
     category: p.category || '',
-    dir,
+    type,                 // 'restock' | 'retur' (retur = non-sale)
     qty,
     stockBefore: cur,
     stockAfter: next,
     costPrice: cost,
+    imei: imeiList,
     note,
     by: userProfile.name || currentUser?.email || 'Admin',
     createdAt: Date.now(),
@@ -1792,34 +1882,40 @@ async function saveStockMove() {
   try {
     if (DEMO || !db) {
       p.stock = next;
-      if (dir === 'in' && cost !== null) p.costPrice = cost;
-      if (dir === 'in' && imeiList.length) {
+      if (!isRetur && cost !== null) p.costPrice = cost;
+      if (!isRetur && imeiList.length) {
         p.imeiPool = (p.imeiPool || []).concat(imeiList);
         p.hasImei = true;
       }
-      stockMoves.unshift({ id: 'm'+Date.now(), ...move, imei: imeiList });
-      // For new product: keep entry so user can set Harga Jual next
-      window._lastStockEntry = isNewProduct ? { productId: p.id, name: p.name, costPrice: cost, category: p.category, brand: p.brand, sku: p.sku } : null;
+      if (isRetur && imeiList.length) {
+        p.imeiPool = (p.imeiPool || []).filter(im => !imeiList.includes(im));
+        if (p.imeiPool.length === 0) p.hasImei = false;
+      }
+      stockMoves.unshift({ id: 'm'+Date.now(), ...move });
+      window._lastStockEntry = null;
       hideStockModal();
       syncStockToProducts();
-      showToast(isNewProduct ? 'Produk baru dibuat. Buka Produk → Edit untuk set Harga Jual.' : 'Stok berhasil diupdate');
+      showToast(isRetur ? 'Retur ke cabang berhasil' : 'Restock berhasil');
       return;
     }
     const upd = { stock: next, updatedAt: Date.now() };
-    if (dir === 'in' && cost !== null) upd.costPrice = cost;
-    if (dir === 'in' && imeiList.length) { upd.imeiPool = (p.imeiPool||[]).concat(imeiList); upd.hasImei = true; }
+    if (!isRetur && cost !== null) upd.costPrice = cost;
+    if (!isRetur && imeiList.length) { upd.imeiPool = (p.imeiPool||[]).concat(imeiList); upd.hasImei = true; }
+    if (isRetur && imeiList.length) { upd.imeiPool = (p.imeiPool||[]).filter(im => !imeiList.includes(im)); if (upd.imeiPool.length===0) upd.hasImei = false; }
     if (!isNewProduct) {
       await db.collection(col('products')).doc(p.id).update(upd);
-    } else if (isNewProduct) {
-      await db.collection(col('products')).doc(p.id).update({ imeiPool: imeiList, hasImei: true });
     }
-    await db.collection(col('stockMoves')).add({ ...move, imei: imeiList });
-    await audit('stock.'+dir, { productId: p.id, name: p.name, qty, stockAfter: next, note });
+    await db.collection(col('stockMoves')).add(move);
+    await audit('stock.'+type, { productId: p.id, name: p.name, qty, stockAfter: next, note });
     hideStockModal();
     syncStockToProducts();
+    showToast(isRetur ? 'Retur ke cabang berhasil' : 'Restock berhasil');
   } catch (e) { alert('Gagal mutasi stok: ' + e.message); }
+}
 
 function syncStockToProducts() {
+  const ic = document.getElementById('imei-count');
+  if (ic) ic.textContent = products.reduce((s,p)=>s+(p.imeiPool||[]).length,0);
   // Re-render all views that show stock
   renderProducts();        // Kasir grid
   renderProductTable();    // Produk table
@@ -1831,7 +1927,6 @@ function syncStockToProducts() {
   }
   // Toast feedback
   showToast('Stok berhasil ' + (dir === 'out' ? 'dikurangi' : 'ditambah') + ': ' + p.name + ' → ' + next);
-}
 }
 
 function loadStockMoves() {
@@ -1873,6 +1968,9 @@ function renderStockPanel() {
 
 /* Payment */
 function showPaymentModal() {
+  const chk = validateCartImei();
+  if (!chk.ok) { alert(chk.msg); showImeiModal(chk.idx); return; }
+
   if (!cart.length) return alert('Keranjang kosong');
   document.getElementById('pay-total').textContent = fmt(cartTotal());
   document.getElementById('cash-amount').value = '';
@@ -1968,14 +2066,12 @@ async function finishPayment() {
         if (p) {
           const before = p.stock || 0;
           p.stock = Math.max(0, before - item.qty);
-          // Pull IMEI from pool if available
-          let soldImei = [];
-          if (p.imeiPool && p.imeiPool.length && item.qty > 0) {
-            soldImei = p.imeiPool.slice(0, item.qty);
-            p.imeiPool = p.imeiPool.slice(item.qty);
+          // Pull IMEI from cart item (validated) and remove from pool
+          let soldImei = item.imei || [];
+          if (p.imeiPool && soldImei.length) {
+            p.imeiPool = (p.imeiPool||[]).filter(im => !soldImei.includes(im));
             if (p.imeiPool.length === 0) p.hasImei = false;
           }
-          item.imei = soldImei;
           stockMoves.unshift({
             id: 'sale'+Date.now()+Math.random(),
             productId: p.id,
@@ -2051,6 +2147,57 @@ function receiptNo(t) {
   const mm = String(d.getMonth()+1).padStart(2,'0');
   const yy = String(d.getFullYear()%100).padStart(2,'0');
   return `ENT-${dd}${mm}${yy}-${String(t.receiptSeq||1).padStart(6,'0')}`;
+}
+
+let _imeiCartIdx = -1;
+function showImeiModal(cartIdx) {
+  _imeiCartIdx = cartIdx;
+  const item = cart[cartIdx];
+  if (!item) return;
+  const p = products.find(x => x.id === item.id);
+  if (!p || !p.hasImei) return alert('Produk ini tidak pakai IMEI');
+  document.getElementById('imei-modal-title').textContent = 'IMEI: ' + item.name;
+  document.getElementById('imei-pool-hint').textContent = 'Stok IMEI tersedia: ' + (p.imeiPool||[]).length;
+  document.getElementById('imei-input').value = (item.imei||[]).join('\n');
+  document.getElementById('imei-modal').classList.remove('hidden');
+}
+function hideImeiModal() { document.getElementById('imei-modal').classList.add('hidden'); _imeiCartIdx = -1; }
+function confirmImei() {
+  if (_imeiCartIdx < 0) return;
+  const item = cart[_imeiCartIdx];
+  if (!item) return;
+  const p = products.find(x => x.id === item.id);
+  if (!p) return;
+  const raw = document.getElementById('imei-input').value.trim();
+  const imeis = raw ? raw.split(/[\r\n]+/).map(s=>s.trim()).filter(Boolean) : [];
+  // Validate: count must match qty
+  if (imeis.length !== item.qty) {
+    return alert('Jumlah IMEI (' + imeis.length + ') harus sama dengan qty (' + item.qty + ')');
+  }
+  // Validate: each IMEI must exist in pool
+  const pool = p.imeiPool || [];
+  for (const im of imeis) {
+    if (!pool.includes(im)) {
+      return alert('IMEI ' + im + ' tidak ada di stok. Cek lagi.');
+    }
+  }
+  // Validate: no duplicate IMEI in input
+  const dup = imeis.find((v,i) => imeis.indexOf(v) !== i);
+  if (dup) return alert('IMEI duplikat: ' + dup);
+  item.imei = imeis;
+  hideImeiModal();
+  renderCart();
+  showToast('IMEI tersimpan untuk ' + item.name);
+}
+function validateCartImei() {
+  for (let i = 0; i < cart.length; i++) {
+    const item = cart[i];
+    const p = products.find(x => x.id === item.id);
+    if (p && p.hasImei) {
+      if (!item.imei || item.imei.length !== item.qty) return { ok: false, idx: i, msg: 'Item ' + item.name + ' belum input IMEI' };
+    }
+  }
+  return { ok: true };
 }
 
 function showReceipt(t) {
