@@ -1910,12 +1910,15 @@ async function saveStockMove() {
     const skuRaw = document.getElementById('sm-new-sku').value.trim();
     const sku = skuRaw || `${cat.substring(0,3).toUpperCase()}-${brand||'GEN'}-${Date.now().toString(36).toUpperCase()}`;
     const fresh = {
-      id: 'p'+Date.now(), name: nm, category: cat, brand, sku,
+      name: nm, category: cat, brand, sku,
       costPrice: 0, stock: 0, price: 0, createdAt: Date.now(), updatedAt: Date.now()
     };
-    if (!db) { products.push(fresh); }
-    else {
-      await db.collection(col('products')).add(fresh);
+    if (!db) {
+      fresh.id = 'p' + Date.now();
+      products.push(fresh);
+    } else {
+      const docRef = await db.collection(col('products')).add(fresh);
+      fresh.id = docRef.id;
       // Push to local array immediately so UI shows product before onSnapshot fires
       products.push(fresh);
     }
