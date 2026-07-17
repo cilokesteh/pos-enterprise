@@ -990,6 +990,11 @@
           <input id="sm-qty" type="number" min="1" class="input w-full px-3 py-2.5 text-sm mt-1" value="1">
         </div>
       </div>
+      <div id="sm-cost-wrap" style="display:none">
+        <label class="text-xs text-[var(--pos-text-tertiary)]">Harga Modal / Beli (Rp) — untuk produk baru / update HPP</label>
+        <input id="sm-cost" type="number" min="0" class="input w-full px-3 py-2.5 text-sm mt-1" placeholder="Contoh: 2200000">
+        <div class="text-[10px] text-[var(--pos-text-muted)] mt-1">Kosongkan jika tidak ingin ubah harga modal. Saat produk baru dibuat dari sini, ini jadi HPP-nya.</div>
+      </div>
       <div>
         <label class="text-xs text-[var(--pos-text-tertiary)]">Catatan / referensi</label>
         <input id="sm-note" class="input w-full px-3 py-2.5 text-sm mt-1" placeholder="Supplier / rusak / transfer cabang…">
@@ -1672,6 +1677,7 @@ function showStockModal(dir, productId) {
   if (productId) sel.value = productId;
   document.getElementById('sm-qty').value = '1';
   document.getElementById('sm-note').value = '';
+  document.getElementById('sm-cost').value = '';
   updateStockHint();
   sel.onchange = updateStockHint;
   document.getElementById('stock-modal').classList.remove('hidden');
@@ -1686,6 +1692,7 @@ function showToast(msg) {
 function onStockDirChange() {
   const d = document.getElementById('sm-dir').value;
   document.getElementById('stock-modal-title').textContent = d === 'out' ? 'Barang Keluar' : 'Barang Masuk';
+  document.getElementById('sm-cost-wrap').style.display = d === 'out' ? 'none' : 'block';
   updateStockHint();
 }
 function updateStockHint() {
@@ -1707,6 +1714,8 @@ async function saveStockMove() {
   const cur = p.stock || 0;
   if (dir === 'out' && qty > cur) return alert(`Stok tidak cukup. Tersedia: ${cur}`);
   const next = dir === 'in' ? cur + qty : cur - qty;
+  const costRaw = document.getElementById('sm-cost').value;
+  const cost = costRaw !== '' ? parseInt(costRaw, 10) : null;
   const move = {
     productId: p.id,
     productName: p.name,
@@ -1715,6 +1724,7 @@ async function saveStockMove() {
     qty,
     stockBefore: cur,
     stockAfter: next,
+    costPrice: cost,
     note,
     by: userProfile.name || currentUser?.email || 'Admin',
     createdAt: Date.now(),
@@ -1722,12 +1732,16 @@ async function saveStockMove() {
   try {
     if (DEMO || !db) {
       p.stock = next;
+      if (dir === 'in' && cost !== null) p.costPrice = cost;
       stockMoves.unshift({ id: 'm'+Date.now(), ...move });
+      window._lastStockEntry = { productId: p.id, name: p.name, costPrice: cost, category: p.category, brand: p.brand, sku: p.sku };
       hideStockModal();
       syncStockToProducts();
       return;
     }
-    await db.collection(col('products')).doc(p.id).update({ stock: next, updatedAt: Date.now() });
+    const upd = { stock: next, updatedAt: Date.now() };
+    if (dir === 'in' && cost !== null) upd.costPrice = cost;
+    await db.collection(col('products')).doc(p.id).update(upd);
     await db.collection(col('stockMoves')).add(move);
     await audit('stock.'+dir, { productId: p.id, name: p.name, qty, stockAfter: next, note });
     hideStockModal();
