@@ -63,7 +63,10 @@
                  class="input w-full px-3 py-3 mt-1 text-sm" placeholder="••••••••">
         </div>
         <button type="submit" id="login-btn" class="btn w-full py-3 text-sm mt-2">
-          Login
+            Login
+        </button>
+        <button type="button" id="demo-btn" class="btn-ghost w-full py-3 text-sm mt-2" onclick="enterDemo()">
+            Masuk Demo
         </button>
       </form>
       <div id="error" class="hidden mt-4 text-center text-sm" style="color:#f87171"></div>
@@ -167,6 +170,13 @@ document.addEventListener('DOMContentLoaded', () => {
       btn.disabled = false;
       btn.textContent = 'Login';
     }
+  });
+
+  document.getElementById('demo-btn').addEventListener('click', () => {
+    try {
+      localStorage.setItem('pos_demo', '1');
+    } catch (e) {}
+    location.href = 'index.html';
   });
 </script>
 </body>

@@ -770,7 +770,6 @@
           <div class="page-tools flex flex-wrap gap-2">
             <button onclick="showStockModal('restock')" class="btn-primary px-3 py-2 text-sm"><i class="fa-solid fa-arrow-down mr-1"></i>Restock</button>
             <button onclick="showStockModal('retur')" class="btn-ghost px-3 py-2 text-sm"><i class="fa-solid fa-arrow-up mr-1"></i>Retur ke Cabang</button>
-            <button onclick="resetStockData()" class="text-xs text-[var(--pos-error)] hover:underline ml-2">Reset Semua Data</button>
           </div>
         </div>
         <div class="stats-grid" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.75rem">
@@ -1384,6 +1383,29 @@ let editingProductId = null;
 let selectedPaymentMethod = 'cash';
 let pendingTx = null;
 let todayStats = { tx: 0, revenue: 0 };
+let _historyTx = [];
+let _currentReportRows = [];
+let _currentReportTitle = 'Laporan';
+let reportPeriod = 'harian';
+let reportAnchor = new Date();
+
+function saveLocalData() {
+  try {
+    localStorage.setItem('pos_products', JSON.stringify(products));
+    localStorage.setItem('pos_stockMoves', JSON.stringify(stockMoves));
+    localStorage.setItem('pos_transactions', JSON.stringify(_historyTx || []));
+  } catch (e) {}
+}
+function loadLocalData() {
+  try {
+    const p = localStorage.getItem('pos_products');
+    const s = localStorage.getItem('pos_stockMoves');
+    const t = localStorage.getItem('pos_transactions');
+    if (p) products = JSON.parse(p);
+    if (s) stockMoves = JSON.parse(s);
+    if (t) _historyTx = JSON.parse(t);
+  } catch (e) {}
+}
 
 function fmt(n) { return 'Rp ' + (n || 0).toLocaleString('id-ID'); }
 function col(name) { return COL[name] || name; }
@@ -1398,6 +1420,7 @@ function applyRoleUI() {
 }
 
 function logout() {
+  try { localStorage.removeItem('pos_demo'); } catch (e) {}
   if (!auth) {
     location.href = 'login.html';
     return;
@@ -1407,7 +1430,26 @@ function logout() {
 
 if (auth) {
   auth.onAuthStateChanged(async (user) => {
-    if (!user) { location.href = 'login.html'; return; }
+    if (!user) {
+      const isDemo = (() => { try { return localStorage.getItem('pos_demo') === '1'; } catch (e) { return false; } })();
+      if (isDemo) {
+        currentUser = { uid: 'demo', email: 'demo@pos.local' };
+        userProfile = { name: 'Demo Admin', role: 'admin', branchId: null };
+        document.getElementById('user-name').textContent = 'Demo Admin';
+        document.getElementById('user-role').textContent = 'admin';
+        document.getElementById('user-avatar').textContent = 'D';
+        document.getElementById('kasir-name').value = 'Demo Admin';
+        applyRoleUI();
+        loadProducts();
+        loadTodayStats();
+        loadBranches();
+        loadUsers();
+        initReportDates();
+        return;
+      }
+      location.href = 'login.html';
+      return;
+    }
     currentUser = user;
     const name = user.email.split('@')[0];
     document.getElementById('user-name').textContent = name;
@@ -1460,7 +1502,16 @@ function switchView(name) {
 }
 
 function loadProducts() {
-  if (!db) return;
+  loadLocalData();
+  if (!db) {
+    renderProducts();
+    renderProductTable();
+    updateStats();
+    refreshCategories();
+    renderStockPanel();
+    loadHistory();
+    return;
+  }
   db.collection(col('products')).onSnapshot(snap => {
     products = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     renderProducts();
@@ -1541,22 +1592,22 @@ function scanImei() {
   const raw = document.getElementById('imei-scan').value.trim();
   const res = document.getElementById('scan-result');
   if (!raw) { res.innerHTML = '<div class="text-xs text-[var(--pos-warning)]">Masukkan IMEI/SN</div>'; return; }
-  // Find product with this IMEI in pool
-  const found = products.find(p => (p.imeiPool||[]).includes(raw));
+  const normalized = raw.replace(/\s+/g, '').toLowerCase();
+  if (!normalized) { res.innerHTML = '<div class="text-xs text-[var(--pos-warning)]">Masukkan IMEI/SN</div>'; return; }
+  // Find product with this IMEI in pool — match normalized to avoid whitespace/case mismatch
+  const found = products.find(p => (p.imeiPool || []).some(im => String(im).replace(/\s+/g, '').toLowerCase() === normalized));
   if (!found) {
     if (!res) return;
-      if (!res) return;
-  res.innerHTML = `<div class="text-xs text-[var(--pos-error)]">IMEI/SN tidak ditemukan di stok. Cek kembali atau lakukan Restock dulu.</div>`;
+    res.innerHTML = `<div class="text-xs text-[var(--pos-error)]">IMEI/SN tidak ditemukan di stok. Cek kembali atau lakukan Restock dulu.</div>`;
     return;
   }
   if ((found.stock||0) <= 0) {
     if (!res) return;
-      if (!res) return;
-  res.innerHTML = `<div class="text-xs text-[var(--pos-warning)]">Stok habis untuk ${esc(found.name)}</div>`;
+    res.innerHTML = `<div class="text-xs text-[var(--pos-warning)]">Stok habis untuk ${esc(found.name)}</div>`;
     return;
   }
   // Show product card with price input
-    if (!res) return;
+  if (!res) return;
   res.innerHTML = `
     <div class="surface p-3" id="scan-card">
       <div class="font-medium text-sm">${esc(found.name)}</div>
@@ -1644,7 +1695,13 @@ function updateStats() {
 }
 
 function loadTodayStats() {
-  if (!db) { updateStats(); return; }
+  if (!db) {
+    const start = new Date(); start.setHours(0,0,0,0);
+    todayStats.tx = (_historyTx || []).filter(t => (t.createdAt||0) >= start.getTime()).length;
+    todayStats.revenue = (_historyTx || []).filter(t => (t.createdAt||0) >= start.getTime()).reduce((s,t) => s + (t.total||0), 0);
+    updateStats();
+    return;
+  }
   const start = new Date(); start.setHours(0,0,0,0);
   db.collection(col('transactions'))
     .where('createdAt', '>=', start.getTime())
@@ -1726,6 +1783,7 @@ async function saveProduct() {
       }
       hideProductModal();
       renderProducts(); renderProductTable(); refreshCategories(); updateStats(); renderStockPanel();
+      saveLocalData();
       return;
     }
     if (editingProductId) {
@@ -1739,6 +1797,7 @@ async function saveProduct() {
       await audit('product.create.fromstock', { name: e.name });
     }
     hideProductModal();
+    saveLocalData();
   } catch (e) { alert('Gagal simpan: ' + e.message); }
 }
 
@@ -1749,6 +1808,7 @@ async function deleteProduct(id) {
     if (!db) {
       products = products.filter(x => x.id !== id);
       stockMoves = stockMoves.filter(x => x.productId !== id);
+      saveLocalData();
       renderProducts(); renderProductTable(); updateStats(); renderStockPanel(); loadHistory(); loadReports();
       showToast('Produk dihapus');
       return;
@@ -1760,6 +1820,7 @@ async function deleteProduct(id) {
     movesSnap.docs.forEach(doc => batch.delete(doc.ref));
     if (movesSnap.docs.length) await batch.commit();
     await audit('product.delete', { id, name: p?.name });
+    saveLocalData();
     showToast('Produk dihapus');
   } catch (e) { alert('Gagal hapus: ' + e.message); }
 }
@@ -1928,13 +1989,24 @@ async function saveStockMove() {
       window._lastStockEntry = null;
       hideStockModal();
       syncStockToProducts(isRetur ? 'retur' : 'restock', p.name, next);
+      saveLocalData();
       showToast(isRetur ? 'Retur ke cabang berhasil' : 'Restock berhasil');
       return;
     }
     const upd = { stock: next, updatedAt: Date.now() };
     if (!isRetur && cost !== null) upd.costPrice = cost;
-    if (!isRetur && imeiList.length) { p.imeiPool = (p.imeiPool||[]).concat(imeiList); upd.imeiPool = p.imeiPool; upd.hasImei = true; }
-    if (isRetur && imeiList.length) { p.imeiPool = (p.imeiPool||[]).filter(im => !imeiList.includes(im)); upd.imeiPool = p.imeiPool; if (upd.imeiPool.length===0) upd.hasImei = false; }
+    if (!isRetur && imeiList.length) {
+      const normalizedImei = imeiList.map(im => String(im).trim());
+      p.imeiPool = (p.imeiPool||[]).concat(normalizedImei);
+      upd.imeiPool = p.imeiPool;
+      upd.hasImei = true;
+    }
+    if (isRetur && imeiList.length) {
+      const normalizedInput = imeiList.map(im => String(im).replace(/\s+/g, '').toLowerCase());
+      p.imeiPool = (p.imeiPool||[]).filter(im => !normalizedInput.includes(String(im).replace(/\s+/g, '').toLowerCase()));
+      upd.imeiPool = p.imeiPool;
+      if (upd.imeiPool.length===0) upd.hasImei = false;
+    }
     if (!isNewProduct) {
       await db.collection(col('products')).doc(p.id).update(upd);
     }
@@ -1945,6 +2017,7 @@ async function saveStockMove() {
     await audit('stock.'+type, { productId: p.id, name: p.name, qty, stockAfter: next, note });
     hideStockModal();
     syncStockToProducts(isRetur ? 'retur' : 'restock', p.name, next);
+    saveLocalData();
     showToast(isRetur ? 'Retur ke cabang berhasil' : 'Restock berhasil');
   } catch (e) { alert('Gagal mutasi stok: ' + e.message + '\n' + (e.stack||'')); console.error(e); }
 }
@@ -1981,6 +2054,7 @@ function resetStockData() {
   products = [];
   stockMoves = [];
   transactions = [];
+  saveLocalData();
   if (typeof saveDemoData === 'function') saveDemoData();
   renderProducts(); renderProductTable(); updateStats(); renderStockPanel(); loadHistory(); loadReports();
   showToast('Semua data stok & riwayat telah dihapus');
@@ -2104,7 +2178,8 @@ function confirmPayment() {
   pendingTx = {
     items: cart.map(i => ({
       name: i.name, price: i.price, qty: i.qty,
-      subtotal: i.price * i.qty, costPrice: i.costPrice || 0, category: i.category || ''
+      subtotal: i.price * i.qty, costPrice: i.costPrice || 0, category: i.category || '',
+      imei: i.imei || []
     })),
     total, method: selectedPaymentMethod, cash, change, split,
     customerName: document.getElementById('customer-name').value.trim() || 'Walk-in',
@@ -2138,7 +2213,8 @@ async function finishPayment() {
           // Pull IMEI from cart item (validated) and remove from pool
           let soldImei = item.imei || [];
           if (p.imeiPool && soldImei.length) {
-            p.imeiPool = (p.imeiPool||[]).filter(im => !soldImei.includes(im));
+            const normalizedPool = (p.imeiPool || []).map(im => String(im).replace(/\s+/g, '').toLowerCase());
+            p.imeiPool = (p.imeiPool || []).filter(im => !soldImei.some(s => String(s).replace(/\s+/g, '').toLowerCase() === String(im).replace(/\s+/g, '').toLowerCase()));
             if (p.imeiPool.length === 0) p.hasImei = false;
           }
           stockMoves.unshift({
@@ -2156,6 +2232,7 @@ async function finishPayment() {
           });
         }
       }
+      saveLocalData();
       updateStats();
       renderProducts();
       renderProductTable();
@@ -2178,13 +2255,27 @@ async function finishPayment() {
 
     await db.collection(col('transactions')).add(pendingTx);
 
-    // decrement stock
+    // decrement stock + remove sold IMEI from pool
     for (const item of pendingTx.items) {
       const p = products.find(x => x.name === item.name);
       if (p) {
         const before = p.stock || 0;
         const newStock = Math.max(0, before - item.qty);
-        await db.collection(col('products')).doc(p.id).update({ stock: newStock });
+        const soldImei = (item.imei || []).slice();
+        const updatedPool = soldImei.length
+          ? (p.imeiPool || []).filter(im => !soldImei.some(s => String(s).replace(/\s+/g, '').toLowerCase() === String(im).replace(/\s+/g, '').toLowerCase()))
+          : (p.imeiPool || []);
+        const upd = { stock: newStock, updatedAt: Date.now() };
+        if (soldImei.length) {
+          upd.imeiPool = updatedPool;
+          upd.hasImei = updatedPool.length > 0;
+        }
+        await db.collection(col('products')).doc(p.id).update(upd);
+        p.stock = newStock;
+        if (soldImei.length) {
+          p.imeiPool = updatedPool;
+          p.hasImei = updatedPool.length > 0;
+        }
         await db.collection(col('stockMoves')).add({
           productId: p.id,
           productName: p.name,
@@ -2200,6 +2291,7 @@ async function finishPayment() {
       }
     }
     await audit('sale.create', { total: pendingTx.total, method: pendingTx.method });
+    saveLocalData();
     showReceipt(pendingTx);
     cart = [];
     renderCart();
@@ -2243,10 +2335,12 @@ function confirmImei() {
   if (imeis.length !== item.qty) {
     return alert('Jumlah IMEI (' + imeis.length + ') harus sama dengan qty (' + item.qty + ')');
   }
-  // Validate: each IMEI must exist in pool
+  // Validate: each IMEI must exist in pool — normalize whitespace/case
   const pool = p.imeiPool || [];
+  const normalizedPool = pool.map(im => String(im).replace(/\s+/g, '').toLowerCase());
   for (const im of imeis) {
-    if (!pool.includes(im)) {
+    const normalizedInput = String(im).replace(/\s+/g, '').toLowerCase();
+    if (!normalizedPool.includes(normalizedInput)) {
       return alert('IMEI ' + im + ' tidak ada di stok. Cek lagi.');
     }
   }
@@ -2318,8 +2412,18 @@ function loadHistory() {
   if (range === 'today') { const d = new Date(); d.setHours(0,0,0,0); start = d.getTime(); }
   else if (range === '7') start = now - 7*864e5;
   else if (range === '30') start = now - 30*864e5;
-  if (db) { const snaps = []; db.collection(COL.transactions).where('createdAt','>=',start).where('createdAt','<=',now).get().then(q=>{ window._historyTx = q.docs.map(d=>d.data()).sort((a,b)=>b.createdAt-a.createdAt); renderHistoryTable(); }); return; }
-  else window._historyTx = [];
+  if (db) {
+    const snaps = [];
+    db.collection(COL.transactions).where('createdAt','>=',start).where('createdAt','<=',now).get().then(q=>{
+      window._historyTx = q.docs.map(d=>d.data()).sort((a,b)=>b.createdAt-a.createdAt);
+      saveLocalData();
+      renderHistoryTable();
+    }).catch(()=>{
+      renderHistoryTable();
+    });
+    return;
+  }
+  loadLocalData();
   renderHistoryTable();
 }
 function renderHistoryTable() {
@@ -2782,8 +2886,7 @@ function loadUsers() {
   if (!db) {
     const tb = document.getElementById('user-table-body');
     if (!tb) return;
-    if (!tb) return;
-  tb.innerHTML = users.map(u => {
+    tb.innerHTML = users.map(u => {
       const br = branches.find(b => b.id === u.branchId);
       return `<tr>
         <td>${esc(u.name)}</td><td>${esc(u.email)}</td>
