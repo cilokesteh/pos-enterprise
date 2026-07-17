@@ -1804,8 +1804,14 @@ function showStockModal(dir, productId) {
   document.getElementById('sm-qty').value = '1';
   document.getElementById('sm-note').value = '';
   document.getElementById('sm-cost').value = '';
+  document.getElementById('sm-new-name').value = '';
+  document.getElementById('sm-new-category').value = 'HP';
+  document.getElementById('sm-new-brand').value = '';
+  document.getElementById('sm-new-sku').value = '';
+  document.getElementById('sm-imei').value = '';
   updateStockHint();
-  sel.onchange = updateStockHint;
+  sel.onchange = function() { onStockTypeChange(); updateStockHint(); };
+  if (productId) sel.value = productId;
   document.getElementById('stock-modal').classList.remove('hidden');
 }
 function hideStockModal() { document.getElementById('stock-modal').classList.add('hidden'); }
@@ -1828,9 +1834,13 @@ function onStockTypeChange() {
 }
 function updateStockHint() {
   const id = document.getElementById('sm-product').value;
+  const isNew = id === '__new__';
+  const newFields = document.getElementById('sm-new-fields');
+  if (newFields) newFields.classList.toggle('hidden', !isNew);
+  
   const p = products.find(x => x.id === id);
   const el = document.getElementById('sm-stock-hint');
-  if (!p) { el.textContent = 'Stok saat ini: —'; return; }
+  if (!p) { el.textContent = isNew ? 'Stok saat ini: 0 (produk baru akan dibuat)' : 'Stok saat ini: —'; return; }
   el.textContent = `Stok saat ini: ${p.stock||0} · Tipe: ${p.category||'—'} · Brand: ${p.brand||'—'}`;
 }
 
@@ -1843,9 +1853,13 @@ async function saveStockMove() {
   let p = products.find(x => x.id === productId);
   let isNewProduct = false;
   if (productId === '__new__') {
-    const nm = (document.getElementById('sm-product').selectedOptions[0].textContent || '').replace(' ➕ Produk Baru (dari stok ini)','').trim();
+    const nm = document.getElementById('sm-new-name').value.trim() || 'Produk Baru';
+    const cat = document.getElementById('sm-new-category').value || 'HP';
+    const brand = document.getElementById('sm-new-brand').value.trim();
+    const skuRaw = document.getElementById('sm-new-sku').value.trim();
+    const sku = skuRaw || `${cat.substring(0,3).toUpperCase()}-${brand||'GEN'}-${Date.now().toString(36).toUpperCase()}`;
     const fresh = {
-      id: 'p'+Date.now(), name: nm || 'Produk Baru', category: 'HP', brand: '', sku: '',
+      id: 'p'+Date.now(), name: nm, category: cat, brand, sku,
       costPrice: 0, stock: 0, price: 0, createdAt: Date.now(), updatedAt: Date.now()
     };
     if (!db) { products.push(fresh); }
