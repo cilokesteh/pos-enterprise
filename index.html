@@ -2704,9 +2704,7 @@ function renderBestSeller(rows) {
     </tr>`).join('');
 }
 
-// store current rows for export
-let _currentReportRows = [];
-let _currentReportTitle = 'Laporan';
+// store current rows for export (declared above)
 
 async function loadReports() {
   const thead = document.getElementById('report-thead');
