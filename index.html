@@ -1677,6 +1677,12 @@ function showStockModal(dir, productId) {
   document.getElementById('stock-modal').classList.remove('hidden');
 }
 function hideStockModal() { document.getElementById('stock-modal').classList.add('hidden'); }
+function showToast(msg) {
+  let t = document.getElementById('pos-toast');
+  if (!t) { t = document.createElement('div'); t.id = 'pos-toast'; t.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:rgba(39,166,68,.95);color:#fff;padding:10px 18px;border-radius:8px;font-size:13px;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,.3);transition:opacity .3s;pointer-events:none'; document.body.appendChild(t); }
+  t.textContent = msg; t.style.opacity = '1';
+  clearTimeout(t._timer); t._timer = setTimeout(()=>{ t.style.opacity = '0'; }, 2200);
+}
 function onStockDirChange() {
   const d = document.getElementById('sm-dir').value;
   document.getElementById('stock-modal-title').textContent = d === 'out' ? 'Barang Keluar' : 'Barang Masuk';
@@ -1718,14 +1724,29 @@ async function saveStockMove() {
       p.stock = next;
       stockMoves.unshift({ id: 'm'+Date.now(), ...move });
       hideStockModal();
-      renderProducts(); renderProductTable(); updateStats(); renderStockPanel();
+      syncStockToProducts();
       return;
     }
     await db.collection(col('products')).doc(p.id).update({ stock: next, updatedAt: Date.now() });
     await db.collection(col('stockMoves')).add(move);
     await audit('stock.'+dir, { productId: p.id, name: p.name, qty, stockAfter: next, note });
     hideStockModal();
+    syncStockToProducts();
   } catch (e) { alert('Gagal mutasi stok: ' + e.message); }
+
+function syncStockToProducts() {
+  // Re-render all views that show stock
+  renderProducts();        // Kasir grid
+  renderProductTable();    // Produk table
+  updateStats();           // Dashboard stats
+  renderStockPanel();      // Stok panel
+  // Update the stock hint if modal still open
+  if (!document.getElementById('stock-modal').classList.contains('hidden')) {
+    updateStockHint();
+  }
+  // Toast feedback
+  showToast('Stok berhasil ' + (dir === 'out' ? 'dikurangi' : 'ditambah') + ': ' + p.name + ' → ' + next);
+}
 }
 
 function loadStockMoves() {
