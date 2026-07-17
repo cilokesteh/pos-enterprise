@@ -724,7 +724,7 @@
           <div class="page-tools">
             <button onclick="showStockModal('in')" class="btn-ghost px-3 py-2 text-sm"><i class="fa-solid fa-arrow-down mr-1"></i>Stok Masuk</button>
             <button onclick="showStockModal('out')" class="btn-ghost px-3 py-2 text-sm"><i class="fa-solid fa-arrow-up mr-1"></i>Stok Keluar</button>
-            <button onclick="showProductModal()" class="btn-primary px-4 py-2 text-sm"><i class="fa-solid fa-plus mr-1"></i>Tambah</button>
+            <button onclick="alert('Produk otomatis dibuat dari Stok Masuk. Klik Stok Masuk → isi data → simpan, lalu edit Harga Jual di sini.')" class="btn-primary px-4 py-2 text-sm" title="Produk lahir dari Stok Masuk"><i class="fa-solid fa-plus mr-1"></i>Tambah</button>
           </div>
         </div>
         <div class="page-tools">
@@ -1569,51 +1569,83 @@ function loadTodayStats() {
     }, () => {});
 }
 
-/* Products CRUD */
+/* Products CRUD — products can ONLY be created from Stok Masuk.
+   Edit mode: only Harga Jual can be changed. */
+const PRODUCT_LOCKED_FIELDS = ['p-name','p-cost','p-stock','p-sku','p-category','p-brand'];
+function lockProductFields(lock) {
+  PRODUCT_LOCKED_FIELDS.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.readOnly = lock; el.disabled = lock; el.style.opacity = lock ? '0.5' : '1'; el.style.cursor = lock ? 'not-allowed' : 'auto'; }
+  });
+}
 function showProductModal(p) {
+  const isNew = !p;
   editingProductId = p ? p.id : null;
-  document.getElementById('product-modal-title').textContent = p ? 'Edit Produk' : 'Tambah Produk';
-  document.getElementById('p-name').value = p ? p.name : '';
+  // NEW product always comes from stock entry
+  if (isNew && window._lastStockEntry) {
+    const e = window._lastStockEntry;
+    document.getElementById('p-name').value = e.name || '';
+    document.getElementById('p-brand').value = e.brand || '';
+    document.getElementById('p-sku').value = e.sku || '';
+    document.getElementById('p-category').value = (e.category && e.category !== 'HP') ? e.category : 'HP';
+    document.getElementById('p-cost').value = (e.costPrice !== null && e.costPrice !== undefined) ? e.costPrice : '';
+    document.getElementById('p-stock').value = '';
+    document.getElementById('p-price').value = '';
+    document.getElementById('product-modal-title').textContent = 'Produk Baru (dari Stok Masuk)';
+  } else if (isNew) {
+    // No stock entry yet — block manual creation
+    alert('Belum ada data Stok Masuk. Produk dibuat otomatis saat lo input Stok Masuk → simpan.');
+    return;
+  } else {
+    document.getElementById('product-modal-title').textContent = 'Edit Harga Jual';
+    document.getElementById('p-name').value = p.name || '';
+    document.getElementById('p-cost').value = p.costPrice || 0;
+    document.getElementById('p-stock').value = p.stock || 0;
+    document.getElementById('p-sku').value = p.sku || '';
+    document.getElementById('p-category').value = (p.category==='Aksesoris'?'Aksesoris':'HP');
+    document.getElementById('p-brand').value = p.brand || '';
+  }
   document.getElementById('p-price').value = p ? p.price : '';
-  document.getElementById('p-cost').value = p ? (p.costPrice||0) : '';
-  document.getElementById('p-stock').value = p ? p.stock : '';
-  document.getElementById('p-sku').value = p ? (p.sku||'') : '';
-  document.getElementById('p-category').value = (p && (p.category==='Aksesoris'?'Aksesoris':'HP')) || 'HP';
-  document.getElementById('p-brand').value = p ? (p.brand||'') : '';
+  // Lock: new product => all locked except price (price set manually); edit => only price editable
+  lockProductFields(true);
+  document.getElementById('p-price').readOnly = false;
+  document.getElementById('p-price').style.opacity = '1';
+  document.getElementById('p-price').style.cursor = 'auto';
   document.getElementById('product-modal').classList.remove('hidden');
 }
 function hideProductModal() { document.getElementById('product-modal').classList.add('hidden'); }
 
 async function saveProduct() {
-  const name = document.getElementById('p-name').value.trim();
   const price = parseInt(document.getElementById('p-price').value);
-  const costPrice = parseInt(document.getElementById('p-cost').value) || 0;
-  const stock = parseInt(document.getElementById('p-stock').value);
-  const sku = document.getElementById('p-sku').value.trim();
-  const category = document.getElementById('p-category').value === 'Aksesoris' ? 'Aksesoris' : 'HP';
-  const brand = document.getElementById('p-brand').value.trim();
-  if (!name || isNaN(price) || isNaN(stock)) return alert('Lengkapi data produk');
-  if (stock < 0) return alert('Stok tidak boleh negatif');
-  const data = { name, price, costPrice, stock, sku, category, brand, updatedAt: Date.now() };
+  if (isNaN(price) || price < 0) return alert('Isi Harga Jual dengan benar');
   try {
     if (DEMO || !db) {
       if (editingProductId) {
         const i = products.findIndex(x => x.id === editingProductId);
-        if (i >= 0) products[i] = { ...products[i], ...data };
-      } else {
-        products.push({ id: 'p'+Date.now(), ...data, createdAt: Date.now() });
+        if (i >= 0) products[i] = { ...products[i], price, updatedAt: Date.now() };
+      } else if (window._lastStockEntry) {
+        const e = window._lastStockEntry;
+        const newP = {
+          id: 'p'+Date.now(),
+          name: e.name, category: e.category || 'HP', brand: e.brand || '', sku: e.sku || '',
+          costPrice: e.costPrice || 0, stock: 0, price, createdAt: Date.now(), updatedAt: Date.now()
+        };
+        products.push(newP);
+        window._lastStockEntry = null;
       }
       hideProductModal();
       renderProducts(); renderProductTable(); refreshCategories(); updateStats(); renderStockPanel();
       return;
     }
     if (editingProductId) {
-      await db.collection(col('products')).doc(editingProductId).update(data);
-      await audit('product.update', { id: editingProductId, name });
-    } else {
-      data.createdAt = Date.now();
-      await db.collection(col('products')).add(data);
-      await audit('product.create', { name, category });
+      await db.collection(col('products')).doc(editingProductId).update({ price, updatedAt: Date.now() });
+      await audit('product.update.price', { id: editingProductId });
+    } else if (window._lastStockEntry) {
+      const e = window._lastStockEntry;
+      const newP = { name: e.name, category: e.category||'HP', brand: e.brand||'', sku: e.sku||'', costPrice: e.costPrice||0, stock: 0, price, createdAt: Date.now(), updatedAt: Date.now() };
+      await db.collection(col('products')).add(newP);
+      window._lastStockEntry = null;
+      await audit('product.create.fromstock', { name: e.name });
     }
     hideProductModal();
   } catch (e) { alert('Gagal simpan: ' + e.message); }
@@ -1671,9 +1703,11 @@ function showStockModal(dir, productId) {
   document.getElementById('sm-dir').value = dir === 'out' ? 'out' : 'in';
   onStockDirChange();
   const sel = document.getElementById('sm-product');
-  sel.innerHTML = products.map(p =>
+  let opts = products.map(p =>
     `<option value="${p.id}">${esc(p.name)} · ${esc(p.category||'')} · stok ${p.stock||0}</option>`
-  ).join('') || '<option value="">— Tidak ada produk —</option>';
+  ).join('');
+  opts += '<option value="__new__">➕ Produk Baru (dari stok ini)</option>';
+  sel.innerHTML = opts || '<option value="">— Tidak ada produk —</option>';
   if (productId) sel.value = productId;
   document.getElementById('sm-qty').value = '1';
   document.getElementById('sm-note').value = '';
@@ -1708,7 +1742,19 @@ async function saveStockMove() {
   const dir = document.getElementById('sm-dir').value === 'out' ? 'out' : 'in';
   const qty = parseInt(document.getElementById('sm-qty').value, 10);
   const note = document.getElementById('sm-note').value.trim();
-  const p = products.find(x => x.id === productId);
+  let p = products.find(x => x.id === productId);
+  let isNewProduct = false;
+  if (productId === '__new__') {
+    // Create new product from stock data
+    const nm = (document.getElementById('sm-product').selectedOptions[0].textContent || '').replace(' ➕ Produk Baru (dari stok ini)','').trim();
+    const fresh = {
+      id: 'p'+Date.now(), name: nm || 'Produk Baru', category: 'HP', brand: '', sku: '',
+      costPrice: cost || 0, stock: 0, price: 0, createdAt: Date.now(), updatedAt: Date.now()
+    };
+    if (DEMO || !db) { products.push(fresh); }
+    else { await db.collection(col('products')).add(fresh); }
+    p = fresh; isNewProduct = true;
+  }
   if (!p) return alert('Pilih produk');
   if (!qty || qty < 1) return alert('Jumlah minimal 1');
   const cur = p.stock || 0;
@@ -1734,14 +1780,18 @@ async function saveStockMove() {
       p.stock = next;
       if (dir === 'in' && cost !== null) p.costPrice = cost;
       stockMoves.unshift({ id: 'm'+Date.now(), ...move });
-      window._lastStockEntry = { productId: p.id, name: p.name, costPrice: cost, category: p.category, brand: p.brand, sku: p.sku };
+      // For new product: keep entry so user can set Harga Jual next
+      window._lastStockEntry = isNewProduct ? { productId: p.id, name: p.name, costPrice: cost, category: p.category, brand: p.brand, sku: p.sku } : null;
       hideStockModal();
       syncStockToProducts();
+      showToast(isNewProduct ? 'Produk baru dibuat. Buka Produk → Edit untuk set Harga Jual.' : 'Stok berhasil diupdate');
       return;
     }
     const upd = { stock: next, updatedAt: Date.now() };
     if (dir === 'in' && cost !== null) upd.costPrice = cost;
-    await db.collection(col('products')).doc(p.id).update(upd);
+    if (!isNewProduct) {
+      await db.collection(col('products')).doc(p.id).update(upd);
+    }
     await db.collection(col('stockMoves')).add(move);
     await audit('stock.'+dir, { productId: p.id, name: p.name, qty, stockAfter: next, note });
     hideStockModal();
