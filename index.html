@@ -1001,7 +1001,8 @@
         <label class="text-xs text-[var(--pos-text-tertiary)]">Produk</label>
         <select id="sm-product" class="input w-full px-3 py-2.5 text-sm mt-1"></select>
       </div>
-      <div id="sm-new-fields" class="space-y-3 hidden">
+      <div class="divider-text text-[10px] text-[var(--pos-text-quaternary)] my-2">— Atau isi manual —</div>
+      <div id="sm-new-fields" class="space-y-3">
         <div class="grid grid-cols-2 gap-3">
           <div>
             <label class="text-xs text-[var(--pos-text-tertiary)]">Nama Produk</label>
@@ -1819,7 +1820,6 @@ function showStockModal(dir, productId) {
   document.getElementById('sm-imei').value = '';
   updateStockHint();
   sel.onchange = function() { onStockTypeChange(); updateStockHint(); };
-  if (productId) sel.value = productId;
   document.getElementById('stock-modal').classList.remove('hidden');
 }
 function hideStockModal() { document.getElementById('stock-modal').classList.add('hidden'); }
@@ -1860,8 +1860,9 @@ async function saveStockMove() {
   const note = document.getElementById('sm-note').value.trim();
   let p = products.find(x => x.id === productId);
   let isNewProduct = false;
-  if (productId === '__new__') {
-    const nm = document.getElementById('sm-new-name').value.trim() || 'Produk Baru';
+  const manualName = document.getElementById('sm-new-name').value.trim();
+  if (productId === '__new__' || manualName) {
+    const nm = manualName || 'Produk Baru';
     const cat = document.getElementById('sm-new-category').value || 'HP';
     const brand = document.getElementById('sm-new-brand').value.trim();
     const skuRaw = document.getElementById('sm-new-sku').value.trim();
