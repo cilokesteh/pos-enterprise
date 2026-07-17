@@ -1933,11 +1933,14 @@ async function saveStockMove() {
     }
     const upd = { stock: next, updatedAt: Date.now() };
     if (!isRetur && cost !== null) upd.costPrice = cost;
-    if (!isRetur && imeiList.length) { upd.imeiPool = (p.imeiPool||[]).concat(imeiList); upd.hasImei = true; }
-    if (isRetur && imeiList.length) { upd.imeiPool = (p.imeiPool||[]).filter(im => !imeiList.includes(im)); if (upd.imeiPool.length===0) upd.hasImei = false; }
+    if (!isRetur && imeiList.length) { p.imeiPool = (p.imeiPool||[]).concat(imeiList); upd.imeiPool = p.imeiPool; upd.hasImei = true; }
+    if (isRetur && imeiList.length) { p.imeiPool = (p.imeiPool||[]).filter(im => !imeiList.includes(im)); upd.imeiPool = p.imeiPool; if (upd.imeiPool.length===0) upd.hasImei = false; }
     if (!isNewProduct) {
       await db.collection(col('products')).doc(p.id).update(upd);
     }
+    // Update local stock immediately (don't wait for onSnapshot)
+    p.stock = next;
+    if (!isRetur && cost !== null) p.costPrice = cost;
     await db.collection(col('stockMoves')).add(move);
     await audit('stock.'+type, { productId: p.id, name: p.name, qty, stockAfter: next, note });
     hideStockModal();
