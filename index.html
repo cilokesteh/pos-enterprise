@@ -1211,8 +1211,6 @@ document.getElementById('set-addr').textContent = CONFIG.storeAddress;
 document.getElementById('set-wa').textContent = CONFIG.storeWA;
 
 const COL = CONFIG.collections;
-// Demo mode: ?demo=1 skips Firebase auth for client presentation
-const DEMO = new URLSearchParams(location.search).get('demo') === '1';
 
 // Theme + mobile shell
 document.addEventListener('DOMContentLoaded', () => {
@@ -1249,7 +1247,7 @@ function closeOverlays() {
 function hardRefresh() {
   const icon = document.getElementById('mobile-refresh-icon');
   if (icon) icon.classList.add('fa-spin');
-  // bust SW caches then reload (keeps ?demo=1 etc)
+  // bust SW caches
   const done = () => {
     const u = new URL(location.href);
     u.searchParams.set('_r', String(Date.now()));
@@ -1356,15 +1354,13 @@ function hardRefresh() {
 
 let db = null;
 let auth = null;
-if (!DEMO) {
   try {
     const cfg = CONFIG.firebase || {};
     const valid = cfg.apiKey && !String(cfg.apiKey).includes('***')
       && cfg.messagingSenderId && !String(cfg.messagingSenderId).includes('YOUR_')
       && cfg.appId && !String(cfg.appId).includes('YOUR_');
     if (!valid) {
-      console.warn('Firebase config invalid — redirecting to demo mode');
-      location.replace(location.pathname + '?demo=1' + location.hash);
+      console.warn('Firebase config invalid');
     } else {
       firebase.initializeApp(cfg);
       db = firebase.firestore();
@@ -1372,9 +1368,7 @@ if (!DEMO) {
     }
   } catch (e) {
     console.error('Firebase init failed', e);
-    location.replace(location.pathname + '?demo=1' + location.hash);
   }
-}
 
 let currentUser = null;
 let userProfile = { name: 'Admin', role: 'admin', branchId: null };
@@ -1393,63 +1387,6 @@ let todayStats = { tx: 0, revenue: 0 };
 function fmt(n) { return 'Rp ' + (n || 0).toLocaleString('id-ID'); }
 function col(name) { return COL[name] || name; }
 
-function seedDemo() {
-  // Support ?reset=1 to start with empty data
-  if (location.search.includes('reset=1')) {
-    currentUser = { email: 'demo@pos-enterprise.com', uid: 'demo' };
-    userProfile = { name: 'Demo Admin', role: 'admin', branchId: null };
-    document.getElementById('user-name').textContent = 'Demo Admin';
-    document.getElementById('user-role').textContent = 'admin';
-    document.getElementById('user-avatar').textContent = 'D';
-    document.getElementById('kasir-name').value = 'Demo Admin';
-    document.getElementById('branch-label').textContent = 'HQ Demo';
-    products = [];
-    stockMoves = [];
-    todayStats = { tx: 0, revenue: 0 };
-    branches = [{ id: 'br1', name: 'HQ Demo', address: CONFIG.storeAddress }];
-    users = [
-      { id: 'u1', name: 'Demo Admin', email: 'demo@pos-enterprise.com', role: 'admin', branchId: 'br1' },
-      { id: 'u2', name: 'Kasir 1', email: 'kasir1@demo.com', role: 'kasir', branchId: 'br1' },
-    ];
-    renderProducts(); updateStats(); refreshCategories(); renderCart();
-    renderProductTable(); renderStockPanel();
-    initReportDates();
-    return;
-  }
-  currentUser = { email: 'demo@pos-enterprise.com', uid: 'demo' };
-  userProfile = { name: 'Demo Admin', role: 'admin', branchId: null };
-  document.getElementById('user-name').textContent = 'Demo Admin';
-  document.getElementById('user-role').textContent = 'admin';
-  document.getElementById('user-avatar').textContent = 'D';
-  document.getElementById('kasir-name').value = 'Demo Admin';
-  document.getElementById('branch-label').textContent = 'HQ Demo';
-  products = [
-    {id:'1', name:'Samsung A15 8/128', price:2450000, costPrice:2200000, stock:12, category:'HP', brand:'Samsung', sku:'HP-SAM-A15'},
-    {id:'2', name:'Xiaomi Redmi Note 13', price:2799000, costPrice:2500000, stock:8, category:'HP', brand:'Xiaomi', sku:'HP-XIA-N13'},
-    {id:'3', name:'iPhone 11 64GB', price:4500000, costPrice:4100000, stock:5, category:'HP', brand:'Apple', sku:'HP-APL-11'},
-    {id:'4', name:'Infinix Hot 40i', price:1699000, costPrice:1500000, stock:15, category:'HP', brand:'Infinix', sku:'HP-INF-40I'},
-    {id:'5', name:'Charger 25W Type-C', price:85000, costPrice:45000, stock:40, category:'Aksesoris', brand:'Generic', sku:'ACC-CHG-25'},
-    {id:'6', name:'Kabel USB-C 1m', price:35000, costPrice:15000, stock:60, category:'Aksesoris', brand:'Generic', sku:'ACC-CBL-UC'},
-    {id:'7', name:'Tempered Glass Universal', price:25000, costPrice:8000, stock:100, category:'Aksesoris', brand:'Generic', sku:'ACC-TG-UNI'},
-    {id:'8', name:'Softcase Transparan', price:20000, costPrice:7000, stock:80, category:'Aksesoris', brand:'Generic', sku:'ACC-CSE-CLR'},
-    {id:'9', name:'Earphone Wired', price:45000, costPrice:20000, stock:25, category:'Aksesoris', brand:'Generic', sku:'ACC-EAR-W'},
-    {id:'10', name:'Powerbank 10000mAh', price:175000, costPrice:120000, stock:18, category:'Aksesoris', brand:'Baseus', sku:'ACC-PB-10K'},
-  ];
-  stockMoves = [
-    {id:'m1', productId:'1', productName:'Samsung A15 8/128', dir:'in', qty:5, stockAfter:12, note:'Restock supplier', by:'Demo Admin', createdAt: Date.now()-7200000},
-    {id:'m2', productId:'5', productName:'Charger 25W Type-C', dir:'out', qty:3, stockAfter:40, note:'Display / sample', by:'Demo Admin', createdAt: Date.now()-3600000},
-  ];
-  todayStats = { tx: 24, revenue: 4850000 };
-  branches = [{ id: 'br1', name: 'HQ Demo', address: CONFIG.storeAddress }];
-  users = [
-    { id: 'u1', name: 'Demo Admin', email: 'demo@pos-enterprise.com', role: 'admin', branchId: 'br1' },
-    { id: 'u2', name: 'Kasir 1', email: 'kasir1@demo.com', role: 'kasir', branchId: 'br1' },
-  ];
-  renderProducts(); updateStats(); refreshCategories(); renderCart();
-  renderProductTable(); renderStockPanel();
-  initReportDates();
-}
-
 function applyRoleUI() {
   const role = userProfile.role || 'admin';
   if (role === 'kasir') {
@@ -1460,16 +1397,14 @@ function applyRoleUI() {
 }
 
 function logout() {
-  if (DEMO || !auth) {
+  if (!auth) {
     location.href = 'login.html';
     return;
   }
   auth.signOut().then(() => location.href = 'login.html');
 }
 
-if (DEMO) {
-  seedDemo();
-} else if (auth) {
+if (auth) {
   auth.onAuthStateChanged(async (user) => {
     if (!user) { location.href = 'login.html'; return; }
     currentUser = user;
@@ -1524,7 +1459,7 @@ function switchView(name) {
 }
 
 function loadProducts() {
-  if (DEMO || !db) return;
+  if (!db) return;
   db.collection(col('products')).onSnapshot(snap => {
     products = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     renderProducts();
@@ -1708,7 +1643,7 @@ function updateStats() {
 }
 
 function loadTodayStats() {
-  if (DEMO || !db) { updateStats(); return; }
+  if (!db) { updateStats(); return; }
   const start = new Date(); start.setHours(0,0,0,0);
   db.collection(col('transactions'))
     .where('createdAt', '>=', start.getTime())
@@ -1774,7 +1709,7 @@ async function saveProduct() {
   const price = parseInt(document.getElementById('p-price').value);
   if (isNaN(price) || price < 0) return alert('Isi Harga Jual dengan benar');
   try {
-    if (DEMO || !db) {
+    if (!db) {
       if (editingProductId) {
         const i = products.findIndex(x => x.id === editingProductId);
         if (i >= 0) products[i] = { ...products[i], price, updatedAt: Date.now() };
@@ -1810,7 +1745,7 @@ async function deleteProduct(id) {
   const p = products.find(x => x.id === id);
   if (!confirm(`Hapus produk "${p?.name||id}"?`)) return;
   try {
-    if (DEMO || !db) {
+    if (!db) {
       products = products.filter(x => x.id !== id);
       renderProducts(); renderProductTable(); updateStats(); renderStockPanel();
       return;
@@ -1913,7 +1848,7 @@ async function saveStockMove() {
       id: 'p'+Date.now(), name: nm || 'Produk Baru', category: 'HP', brand: '', sku: '',
       costPrice: 0, stock: 0, price: 0, createdAt: Date.now(), updatedAt: Date.now()
     };
-    if (DEMO || !db) { products.push(fresh); }
+    if (!db) { products.push(fresh); }
     else { await db.collection(col('products')).add(fresh); }
     p = fresh; isNewProduct = true;
   }
@@ -1955,7 +1890,7 @@ async function saveStockMove() {
     createdAt: Date.now(),
   };
   try {
-    if (DEMO || !db) {
+    if (!db) {
       p.stock = next;
       if (!isRetur && cost !== null) p.costPrice = cost;
       if (!isRetur && imeiList.length) {
@@ -2006,7 +1941,7 @@ function syncStockToProducts(direction, productName, newStock) {
 }
 
 function loadStockMoves() {
-  if (DEMO || !db) { renderStockPanel(); return; }
+  if (!db) { renderStockPanel(); return; }
   db.collection(col('stockMoves')).orderBy('createdAt', 'desc').limit(100)
     .onSnapshot(snap => {
       stockMoves = snap.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -2165,7 +2100,7 @@ function hideConfirmModal() { document.getElementById('confirm-modal').classList
 async function finishPayment() {
   if (!pendingTx) return;
   try {
-    if (DEMO || !db) {
+    if (!db) {
       pendingTx.receiptSeq = (todayStats.tx || 0) + 1;
       todayStats.tx += 1;
       todayStats.revenue += pendingTx.total || 0;
@@ -2357,8 +2292,7 @@ function loadHistory() {
   if (range === 'today') { const d = new Date(); d.setHours(0,0,0,0); start = d.getTime(); }
   else if (range === '7') start = now - 7*864e5;
   else if (range === '30') start = now - 30*864e5;
-  if (DEMO) { window._historyTx = getDemoTransactions().filter(t => t.createdAt >= start && t.createdAt <= now).sort((a,b)=>b.createdAt-a.createdAt); }
-  else if (db) { const snaps = []; db.collection(COL.transactions).where('createdAt','>=',start).where('createdAt','<=',now).get().then(q=>{ window._historyTx = q.docs.map(d=>d.data()).sort((a,b)=>b.createdAt-a.createdAt); renderHistoryTable(); }); return; }
+  if (db) { const snaps = []; db.collection(COL.transactions).where('createdAt','>=',start).where('createdAt','<=',now).get().then(q=>{ window._historyTx = q.docs.map(d=>d.data()).sort((a,b)=>b.createdAt-a.createdAt); renderHistoryTable(); }); return; }
   else window._historyTx = [];
   renderHistoryTable();
 }
@@ -2569,17 +2503,6 @@ async function loadTransactionsInRange(start, end) {
   products.forEach(p => { if (p.name) prodCost[p.name] = p.costPrice || 0; });
   window._currentProductCost = prodCost;
 
-  if (DEMO || !db) {
-    return [
-      { id: 'd1', invoice: 'INV-DEMO-001', total: 2535000, method: 'cash', createdAt: Date.now()-86400000, customerName:'Budi', kasirName:'Demo Admin', items: [{name:'Samsung A15 8/128', qty:1, price:2450000, costPrice:2200000},{name:'Charger 25W Type-C', qty:1, price:85000, costPrice:45000}] },
-      { id: 'd2', invoice: 'INV-DEMO-002', total: 4500000, method: 'qris', createdAt: Date.now()-3600000, customerName:'Sari', kasirName:'Demo Admin', items: [{name:'iPhone 11 64GB', qty:1, price:4500000, costPrice:4100000}] },
-      { id: 'd3', invoice: 'INV-DEMO-003', total: 230000, method: 'transfer', createdAt: Date.now()-1800000, customerName:'Andi', kasirName:'Demo Admin', items: [{name:'Powerbank 10000mAh', qty:1, price:175000, costPrice:120000},{name:'Tempered Glass Universal', qty:1, price:25000, costPrice:8000},{name:'Kabel USB-C 1m', qty:1, price:35000, costPrice:15000}] },
-      { id: 'd4', invoice: 'INV-DEMO-004', total: 2450000, method: 'cash', createdAt: Date.now()-7200000, customerName:'Joko', kasirName:'Demo Admin', items: [{name:'Samsung A15 8/128', qty:1, price:2450000, costPrice:2200000}] },
-    ].filter(t => t.createdAt >= start && t.createdAt <= end).map(t => {
-      const m = (t.items||[]).reduce((s,it)=> s + (prodCost[it.name]||it.costPrice||0)*(it.qty||0),0);
-      return { ...t, _modal: m, _profit: (t.total||0) - m };
-    });
-  }
   try {
     const snap = await db.collection(col('transactions'))
       .where('createdAt', '>=', start)
@@ -2774,7 +2697,7 @@ async function saveBranch() {
   loadBranches();
 }
 function loadBranches() {
-  if (DEMO || !db) {
+  if (!db) {
     const bl = document.getElementById('branch-list'); if (bl) bl.innerHTML = branches.map(b =>
       `<div class="flex justify-between items-center py-1.5 border-b border-white/5">
         <div><div class="font-medium text-sm">${esc(b.name)}</div><div class="text-[11px] text-[var(--pos-text-muted)]">${esc(b.address||'')}</div></div>
@@ -2830,7 +2753,7 @@ async function saveUser() {
 }
 
 function loadUsers() {
-  if (DEMO || !db) {
+  if (!db) {
     const tb = document.getElementById('user-table-body');
     if (!tb) return;
     if (!tb) return;
@@ -2869,7 +2792,7 @@ async function deleteUser(id) {
 }
 
 async function audit(action, details) {
-  if (DEMO || !db || !CONFIG.features.auditTrail) return;
+  if (!db || !CONFIG.features.auditTrail) return;
   try {
     await db.collection(col('auditLogs')).add({
       action, details: details || {},
