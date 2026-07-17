@@ -1743,15 +1743,23 @@ async function saveProduct() {
 
 async function deleteProduct(id) {
   const p = products.find(x => x.id === id);
-  if (!confirm(`Hapus produk "${p?.name||id}"?`)) return;
+  if (!confirm(`Hapus produk "${p?.name||id}"? Produk ini akan dihapus permanen.`)) return;
   try {
     if (!db) {
       products = products.filter(x => x.id !== id);
-      renderProducts(); renderProductTable(); updateStats(); renderStockPanel();
+      stockMoves = stockMoves.filter(x => x.productId !== id);
+      renderProducts(); renderProductTable(); updateStats(); renderStockPanel(); loadHistory(); loadReports();
+      showToast('Produk dihapus');
       return;
     }
     await db.collection(col('products')).doc(id).delete();
+    // Also remove associated stock moves
+    const movesSnap = await db.collection(col('stockMoves')).where('productId', '==', id).get();
+    const batch = db.batch();
+    movesSnap.docs.forEach(doc => batch.delete(doc.ref));
+    if (movesSnap.docs.length) await batch.commit();
     await audit('product.delete', { id, name: p?.name });
+    showToast('Produk dihapus');
   } catch (e) { alert('Gagal hapus: ' + e.message); }
 }
 
