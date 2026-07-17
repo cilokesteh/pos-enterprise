@@ -2008,6 +2008,8 @@ async function saveStockMove() {
     p.stock = next;
     if (!isRetur && cost !== null) p.costPrice = cost;
     await db.collection(col('stockMoves')).add(move);
+    // Also add to local stockMoves so Stok view updates immediately
+    stockMoves.unshift({ id: 'm' + Date.now(), ...move });
     await audit('stock.'+type, { productId: p.id, name: p.name, qty, stockAfter: next, note });
     hideStockModal();
     syncStockToProducts(isRetur ? 'retur' : 'restock', p.name, next);
