@@ -65,16 +65,13 @@
         <button type="submit" id="login-btn" class="btn w-full py-3 text-sm mt-2">
           Login
         </button>
-        <button type="button" id="demo-btn" class="btn-ghost w-full py-3 text-sm">
-          Masuk Demo (tanpa login)
-        </button>
       </form>
       <div id="error" class="hidden mt-4 text-center text-sm" style="color:#f87171"></div>
       <div id="cfg-hint" class="hidden mt-3 text-center text-[11px]" style="color:#8a8f98"></div>
     </div>
 
     <p class="foot text-center text-[11px] mt-6">
-      v1.0 enterprise · Demo: index.html?demo=1
+      v1.0 enterprise
     </p>
   </div>
 
@@ -100,10 +97,6 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('title').textContent = CONFIG.storeName;
   document.title = 'Login — ' + CONFIG.storeName;
 
-  document.getElementById('demo-btn').addEventListener('click', () => {
-    location.href = 'index.html?demo=1';
-  });
-
   function isFirebaseConfigValid(cfg) {
     if (!cfg || !cfg.apiKey) return false;
     const key = String(cfg.apiKey);
@@ -119,9 +112,9 @@ document.addEventListener('DOMContentLoaded', () => {
   let auth = null;
 
   if (!cfgOk) {
-    errEl.textContent = 'Firebase API key belum valid. Untuk presentasi, pakai tombol Masuk Demo.';
+    errEl.textContent = 'Firebase API key belum valid. Periksa config.js.';
     errEl.classList.remove('hidden');
-    hintEl.textContent = 'Atau buka index.html?demo=1 langsung.';
+    hintEl.textContent = 'Periksa Firebase config di config.js.';
     hintEl.classList.remove('hidden');
     document.getElementById('login-btn').disabled = true;
   } else {
