@@ -1896,7 +1896,7 @@ function onStockTypeChange() {
   document.getElementById('sm-cost-wrap').style.display = isRetur ? 'none' : 'block';
   document.getElementById('sm-imei-hint').textContent = isRetur
     ? 'IMEI/SN wajib diisi (sama dengan saat restock) untuk mengurangi stok.'
-    : 'IMEI wajib untuk HP/device. SN wajib untuk aksesoris. Jumlah = qty.';
+    : 'IMEI/SN opsional. Jika diisi, jumlah harus sama dengan qty.';
   updateStockHint();
 }
 function updateStockHint() {
@@ -1931,7 +1931,11 @@ async function saveStockMove() {
       costPrice: 0, stock: 0, price: 0, createdAt: Date.now(), updatedAt: Date.now()
     };
     if (!db) { products.push(fresh); }
-    else { await db.collection(col('products')).add(fresh); }
+    else {
+      await db.collection(col('products')).add(fresh);
+      // Push to local array immediately so UI shows product before onSnapshot fires
+      products.push(fresh);
+    }
     p = fresh; isNewProduct = true;
   }
   if (!p) return alert('Pilih produk');
@@ -1945,10 +1949,11 @@ async function saveStockMove() {
   const cost = costRaw !== '' ? parseInt(costRaw, 10) : null;
   if (!isRetur && (cost === null || isNaN(cost) || cost < 0)) return alert('Harga Modal wajib diisi saat Restock');
 
-  // IMEI / SN wajib (device OR aksesoris)
+  // IMEI / SN: wajib utk retur, optional utk restock (jika diisi harus match qty)
   const imeiRaw = document.getElementById('sm-imei').value.trim();
   let imeiList = imeiRaw ? imeiRaw.split(/[\r\n]+/).map(s=>s.trim()).filter(Boolean) : [];
-  if (imeiList.length !== qty) return alert(`Jumlah IMEI/SN (${imeiList.length}) harus sama dengan qty (${qty})`);
+  if (isRetur && imeiList.length !== qty) return alert(`Retur wajib input IMEI/SN. Jumlah (${imeiList.length}) harus sama dengan qty (${qty})`);
+  if (!isRetur && imeiList.length > 0 && imeiList.length !== qty) return alert(`Jumlah IMEI/SN (${imeiList.length}) harus sama dengan qty (${qty})`);
   // Retur: IMEI must exist in pool
   if (isRetur) {
     const pool = p.imeiPool || [];
