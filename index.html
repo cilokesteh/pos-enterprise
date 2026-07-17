@@ -1476,7 +1476,7 @@ function refreshCategories() {
   const sel = document.getElementById('cat-filter');
   if (!sel) return;
   const cur = sel.value;
-  sel.innerHTML = '<option value="all">Semua tipe</option>' + cats.map(c => `<option value="${c}">${c}</option>`).join('');
+  if (sel) sel.innerHTML = '<option value="all">Semua tipe</option>' + cats.map(c => `<option value="${c}">${c}</option>`).join('');
   if ([...sel.options].some(o => o.value === cur)) sel.value = cur; else sel.value = 'all';
   const dl = document.getElementById('cat-list');
   if (dl) dl.innerHTML = cats.map(c => `<option value="${c}">`).join('');
@@ -1487,9 +1487,11 @@ function renderProducts(list) {
   let items = list || products;
   if (currentFilter !== 'all') items = items.filter(p => p.category === currentFilter);
   if (!items.length) {
-    grid.innerHTML = '<div class="col-span-full text-center text-[var(--pos-text-muted)] py-12 text-sm">Tidak ada produk</div>';
+    if (!grid) return;
+  grid.innerHTML = '<div class="col-span-full text-center text-[var(--pos-text-muted)] py-12 text-sm">Tidak ada produk</div>';
     return;
   }
+  if (!grid) return;
   grid.innerHTML = items.map(p => `
     <div class="product-card" onclick="addToCart('${p.id}')">
       <div class="pc-name" title="${esc(p.name)}">${esc(p.name)}</div>
@@ -1541,14 +1543,19 @@ function scanImei() {
   // Find product with this IMEI in pool
   const found = products.find(p => (p.imeiPool||[]).includes(raw));
   if (!found) {
-    res.innerHTML = `<div class="text-xs text-[var(--pos-error)]">IMEI/SN tidak ditemukan di stok. Cek kembali atau lakukan Restock dulu.</div>`;
+    if (!res) return;
+      if (!res) return;
+  res.innerHTML = `<div class="text-xs text-[var(--pos-error)]">IMEI/SN tidak ditemukan di stok. Cek kembali atau lakukan Restock dulu.</div>`;
     return;
   }
   if ((found.stock||0) <= 0) {
-    res.innerHTML = `<div class="text-xs text-[var(--pos-warning)]">Stok habis untuk ${esc(found.name)}</div>`;
+    if (!res) return;
+      if (!res) return;
+  res.innerHTML = `<div class="text-xs text-[var(--pos-warning)]">Stok habis untuk ${esc(found.name)}</div>`;
     return;
   }
   // Show product card with price input
+    if (!res) return;
   res.innerHTML = `
     <div class="surface p-3" id="scan-card">
       <div class="font-medium text-sm">${esc(found.name)}</div>
@@ -1569,7 +1576,7 @@ function addScannedToCart(id, imei) {
   // Each IMEI = 1 qty (device). For aksesoris without IMEI, fallback to normal add
   cart.push({ id: p.id, name: p.name, price, costPrice: p.costPrice||0, category: p.category||'', stock: p.stock, qty: 1, imei: [imei] });
   document.getElementById('imei-scan').value = '';
-  document.getElementById('scan-result').innerHTML = '';
+  const sr = document.getElementById('scan-result'); if (sr) sr.innerHTML = '';
   renderCart();
   showToast('Ditambahkan: ' + p.name);
 }
@@ -1579,13 +1586,15 @@ function renderCart() {
   const el = document.getElementById('cart-list');
   const badge = document.getElementById('cart-badge');
   if (!cart.length) {
-    el.innerHTML = '<div class="text-center text-[var(--pos-text-muted)] py-10 text-sm">Keranjang kosong</div>';
+    if (!el) return;
+  el.innerHTML = '<div class="text-center text-[var(--pos-text-muted)] py-10 text-sm">Keranjang kosong</div>';
     document.getElementById('cart-total').textContent = 'Rp 0';
     document.getElementById('cart-subtotal').textContent = 'Rp 0';
     if (badge) { badge.classList.add('hidden'); }
     return;
   }
   let total = 0;
+  if (!el) return;
   el.innerHTML = cart.map((item, i) => {
     total += item.price * item.qty;
     return `<div class="surface p-2.5">
@@ -1910,7 +1919,7 @@ async function saveStockMove() {
     hideStockModal();
     syncStockToProducts();
     showToast(isRetur ? 'Retur ke cabang berhasil' : 'Restock berhasil');
-  } catch (e) { alert('Gagal mutasi stok: ' + e.message); }
+  } catch (e) { alert('Gagal mutasi stok: ' + e.message + '\n' + (e.stack||'')); console.error(e); }
 }
 
 function syncStockToProducts() {
@@ -2224,7 +2233,7 @@ function showReceipt(t) {
   if (t.method === 'cash') payHtml = `<div>Tunai: ${fmt(t.cash)}</div><div>Kembali: ${fmt(t.change)}</div>`;
   else if (t.method === 'split' && t.split) payHtml = `<div>Split Cash ${fmt(t.split.cash)} · QRIS ${fmt(t.split.qris)} · TF ${fmt(t.split.transfer)}</div>`;
   else payHtml = `<div>Metode: ${t.method.toUpperCase()}</div>`;
-  document.getElementById('receipt-content').innerHTML = `
+  const rc = document.getElementById('receipt-content'); if (rc) rc.innerHTML = `
     <div style="text-align:center;font-weight:bold;font-size:14px">${esc(CONFIG.storeName)}</div>
     <div style="text-align:center;font-style:italic;font-size:11px">${esc(CONFIG.storeJargon||'')}</div>
     <div style="text-align:center;font-size:10px;margin-top:2px">${esc(CONFIG.storeAddress||'')}</div>
@@ -2260,7 +2269,8 @@ function renderHistoryTable() {
     const s = (receiptNo(t)+' '+(t.kasirName||'')+' '+(t.customerName||'')).toLowerCase();
     return s.includes(q);
   });
-  document.getElementById('history-table-body').innerHTML = tx.map(t => `
+  const htb = document.getElementById('history-table-body'); if (!htb) return;
+  htb.innerHTML = tx.map(t => `
     <tr>
       <td class="font-mono text-xs">${esc(receiptNo(t))}</td>
       <td class="text-xs">${new Date(t.createdAt).toLocaleString('id-ID')}</td>
@@ -2529,7 +2539,7 @@ function renderBestSeller(rows) {
   const tb = document.getElementById('report-table-body');
   if (!tb) return;
   if (!list.length) { tb.innerHTML = '<tr><td colspan="7" class="text-center py-8 text-[var(--pos-text-muted)]">Tidak ada data</td></tr>'; return; }
-  document.getElementById('report-thead').innerHTML = '<th>#</th><th>Produk</th><th>Tipe</th><th>Qty Terjual</th><th>Omzet</th><th>Modal</th><th>Profit</th>';
+  const rthead = document.getElementById('report-thead'); if (rthead) rthead.innerHTML = '<th>#</th><th>Produk</th><th>Tipe</th><th>Qty Terjual</th><th>Omzet</th><th>Modal</th><th>Profit</th>';
   tb.innerHTML = list.map((p,i) => `
     <tr>
       <td class="font-medium">${i+1}</td>
@@ -2549,7 +2559,7 @@ let _currentReportTitle = 'Laporan';
 async function loadReports() {
   const thead = document.getElementById('report-thead');
   if (window.reportPeriod === 'terlaris') {
-    thead.innerHTML = '<th>#</th><th>Produk</th><th>Tipe</th><th>Qty Terjual</th><th>Omzet</th><th>Modal</th><th>Profit</th>';
+    if (thead) thead.innerHTML = '<th>#</th><th>Produk</th><th>Tipe</th><th>Qty Terjual</th><th>Omzet</th><th>Modal</th><th>Profit</th>';
     document.getElementById('report-tab-title').textContent = 'Produk Terlaris';
     document.getElementById('report-range-label').textContent = 'Periode: 30 hari terakhir';
     // best seller over last 30 days
@@ -2666,7 +2676,7 @@ async function saveBranch() {
 }
 function loadBranches() {
   if (DEMO || !db) {
-    document.getElementById('branch-list').innerHTML = branches.map(b =>
+    const bl = document.getElementById('branch-list'); if (bl) bl.innerHTML = branches.map(b =>
       `<div class="flex justify-between items-center py-1.5 border-b border-white/5">
         <div><div class="font-medium text-sm">${esc(b.name)}</div><div class="text-[11px] text-[var(--pos-text-muted)]">${esc(b.address||'')}</div></div>
       </div>`
@@ -2677,7 +2687,7 @@ function loadBranches() {
   }
   db.collection(col('branches')).onSnapshot(snap => {
     branches = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    document.getElementById('branch-list').innerHTML = branches.map(b =>
+    const bl = document.getElementById('branch-list'); if (bl) bl.innerHTML = branches.map(b =>
       `<div class="flex justify-between items-center py-1.5 border-b border-white/5">
         <div><div class="font-medium text-sm">${esc(b.name)}</div><div class="text-[11px] text-[var(--pos-text-muted)]">${esc(b.address||'')}</div></div>
       </div>`
@@ -2724,7 +2734,8 @@ function loadUsers() {
   if (DEMO || !db) {
     const tb = document.getElementById('user-table-body');
     if (!tb) return;
-    tb.innerHTML = users.map(u => {
+    if (!tb) return;
+  tb.innerHTML = users.map(u => {
       const br = branches.find(b => b.id === u.branchId);
       return `<tr>
         <td>${esc(u.name)}</td><td>${esc(u.email)}</td>
@@ -2738,7 +2749,8 @@ function loadUsers() {
   db.collection(col('users')).onSnapshot(snap => {
     users = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     const tb = document.getElementById('user-table-body');
-    tb.innerHTML = users.map(u => {
+    if (!tb) return;
+  tb.innerHTML = users.map(u => {
       const br = branches.find(b => b.id === u.branchId);
       return `<tr>
         <td>${esc(u.name)}</td><td>${esc(u.email)}</td>
