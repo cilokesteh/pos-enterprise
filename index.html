@@ -767,9 +767,10 @@
       <div class="page-scroll">
         <div class="page-header">
           <h1 class="text-lg font-semibold page-title">Kontrol Stok</h1>
-          <div class="page-tools">
+          <div class="page-tools flex flex-wrap gap-2">
             <button onclick="showStockModal('restock')" class="btn-primary px-3 py-2 text-sm"><i class="fa-solid fa-arrow-down mr-1"></i>Restock</button>
             <button onclick="showStockModal('retur')" class="btn-ghost px-3 py-2 text-sm"><i class="fa-solid fa-arrow-up mr-1"></i>Retur ke Cabang</button>
+            <button onclick="resetStockData()" class="text-xs text-[var(--pos-error)] hover:underline ml-2">Reset Semua Data</button>
           </div>
         </div>
         <div class="stats-grid" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.75rem">
@@ -1000,6 +1001,33 @@
         <label class="text-xs text-[var(--pos-text-tertiary)]">Produk</label>
         <select id="sm-product" class="input w-full px-3 py-2.5 text-sm mt-1"></select>
       </div>
+      <div id="sm-new-fields" class="space-y-3 hidden">
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="text-xs text-[var(--pos-text-tertiary)]">Nama Produk</label>
+            <input id="sm-new-name" class="input w-full px-3 py-2.5 text-sm mt-1" placeholder="Contoh: Samsung A15">
+          </div>
+          <div>
+            <label class="text-xs text-[var(--pos-text-tertiary)]">Kategori</label>
+            <select id="sm-new-category" class="input w-full px-3 py-2.5 text-sm mt-1">
+              <option value="HP">HP</option>
+              <option value="Aksesoris">Aksesoris</option>
+              <option value="Laptop">Laptop</option>
+              <option value="Tablet">Tablet</option>
+            </select>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="text-xs text-[var(--pos-text-tertiary)]">Brand</label>
+            <input id="sm-new-brand" class="input w-full px-3 py-2.5 text-sm mt-1" placeholder="Samsung / Xiaomi / etc">
+          </div>
+          <div>
+            <label class="text-xs text-[var(--pos-text-tertiary)]">SKU</label>
+            <input id="sm-new-sku" class="input w-full px-3 py-2.5 text-sm mt-1" placeholder="Opsional">
+          </div>
+        </div>
+      </div>
       <div id="sm-cost-wrap">
         <label class="text-xs text-[var(--pos-text-tertiary)]">Harga Modal / Beli (Rp) — wajib saat restock</label>
         <input id="sm-cost" type="number" min="0" class="input w-full px-3 py-2.5 text-sm mt-1" placeholder="Contoh: 2200000">
@@ -1039,6 +1067,20 @@
       <button onclick="hideImeiModal()" class="btn-ghost flex-1 py-2.5 text-sm">Batal</button>
       <button onclick="confirmImei()" class="btn-primary flex-1 py-2.5 text-sm">Simpan IMEI</button>
     </div>
+  </div>
+</div>
+
+<!-- IMEI Pool Modal -->
+<div id="imei-pool-modal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
+  <div class="bg-white dark:bg-gray-800 rounded-lg p-4 max-w-lg w-full mx-4 max-h-[80vh] flex flex-col">
+    <div class="flex items-center justify-between mb-3">
+      <h3 id="imei-pool-title" class="font-semibold text-sm">IMEI/SN</h3>
+      <div class="flex gap-2">
+        <button onclick="copyImeiPool()" class="text-xs btn-primary">Copy</button>
+        <button onclick="hideImeiPool()" class="text-xs btn-secondary">Tutup</button>
+      </div>
+    </div>
+    <textarea id="imei-pool-content" readonly class="input w-full flex-1 min-h-[200px] text-xs font-mono"></textarea>
   </div>
 </div>
 
@@ -1782,6 +1824,7 @@ function renderProductTable() {
         <div class="actions-cell">
           <button onclick="showStockModal('in','${p.id}')" class="btn-ghost" title="Stok masuk"><i class="fa-solid fa-arrow-down"></i></button>
           <button onclick="showStockModal('out','${p.id}')" class="btn-ghost" title="Stok keluar"><i class="fa-solid fa-arrow-up"></i></button>
+          <button onclick="showImeiPool('${p.id}')" class="btn-ghost" title="Lihat IMEI/SN"><i class="fa-solid fa-barcode"></i></button>
           <button onclick="editProductById('${p.id}')" class="btn-ghost" title="Edit"><i class="fa-solid fa-pen"></i></button>
           <button onclick="deleteProduct('${p.id}')" class="btn-danger" title="Hapus"><i class="fa-solid fa-trash"></i></button>
         </div>
