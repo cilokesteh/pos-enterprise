@@ -515,6 +515,42 @@
     #product-grid { gap: 0.45rem; }
     .product-card { min-height: 78px; padding: 0.65rem !important; }
   }
+
+  /* Pull to refresh */
+  .ptr-indicator {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    height: 0;
+    overflow: hidden;
+    color: var(--pos-text-tertiary);
+    font-size: 12px;
+    transition: height .15s ease, opacity .15s ease;
+    opacity: 0;
+    flex: 0 0 auto;
+  }
+  .ptr-indicator.show {
+    display: flex;
+    height: 48px;
+    opacity: 1;
+  }
+  .ptr-indicator .ptr-icon {
+    transition: transform .15s ease;
+  }
+  .ptr-indicator.ready .ptr-icon {
+    transform: rotate(180deg);
+  }
+  .ptr-indicator.loading .ptr-icon {
+    animation: ptr-spin .7s linear infinite;
+  }
+  @keyframes ptr-spin {
+    to { transform: rotate(360deg); }
+  }
+  @media (max-width: 1024px) {
+    .ptr-indicator { display: flex; }
+    .ptr-indicator:not(.show) { height: 0; opacity: 0; }
+  }
 </style>
 </head>
 <body id="app-body">
@@ -563,7 +599,10 @@
           <i class="fa-solid fa-right-from-bracket"></i>
         </button>
       </div>
-      <div class="text-[10px] text-[var(--pos-text-muted)] text-center select-none">v1.5 product-grid</div>
+      <button type="button" onclick="hardRefresh()" class="btn-ghost w-full py-2 text-xs">
+        <i class="fa-solid fa-rotate-right mr-1"></i>Refresh app
+      </button>
+      <div class="text-[10px] text-[var(--pos-text-muted)] text-center select-none">v1.6 pull-refresh</div>
     </div>
   </aside>
 
@@ -575,6 +614,9 @@
         <i class="fa-solid fa-bars"></i>
       </button>
       <span class="font-medium text-sm truncate flex-1 text-center" id="mobile-title">Kasir</span>
+      <button type="button" onclick="hardRefresh()" class="btn-ghost px-3 py-2 text-sm" aria-label="Refresh" title="Refresh">
+        <i class="fa-solid fa-rotate-right" id="mobile-refresh-icon"></i>
+      </button>
       <button type="button" class="theme-toggle-btn" data-theme-title title="Ganti tema" aria-label="Ganti tema" onclick="return toggleDarkMode(event)">
         <i class="fa-solid fa-moon theme-toggle-icon"></i>
       </button>
@@ -582,6 +624,10 @@
         <i class="fa-solid fa-cart-shopping"></i>
         <span id="cart-badge" class="hidden absolute -top-1 -right-1 w-4 h-4 bg-accent text-white text-[10px] rounded-full flex items-center justify-center">0</span>
       </button>
+    </div>
+    <div id="ptr-bar" class="ptr-indicator" aria-hidden="true">
+      <i class="fa-solid fa-arrow-down ptr-icon"></i>
+      <span class="ptr-text">Tarik untuk refresh</span>
     </div>
     <div id="ui-scrim" class="scrim" onclick="closeOverlays()"></div>
 
@@ -1007,6 +1053,14 @@ document.addEventListener('DOMContentLoaded', () => {
   initTheme();
   injectThemeCSS();
   applyThemeToDom();
+  // strip cache-buster param from URL after load (clean address bar)
+  try {
+    const u = new URL(location.href);
+    if (u.searchParams.has('_r')) {
+      u.searchParams.delete('_r');
+      history.replaceState(null, '', u.pathname + u.search + u.hash);
+    }
+  } catch (_) {}
 });
 function updateToggleUI() { applyThemeToDom(); }
 
@@ -1025,6 +1079,114 @@ function closeOverlays() {
   document.getElementById('cart-panel')?.classList.remove('open');
   document.getElementById('ui-scrim')?.classList.remove('show');
 }
+
+function hardRefresh() {
+  const icon = document.getElementById('mobile-refresh-icon');
+  if (icon) icon.classList.add('fa-spin');
+  // bust SW caches then reload (keeps ?demo=1 etc)
+  const done = () => {
+    const u = new URL(location.href);
+    u.searchParams.set('_r', String(Date.now()));
+    location.replace(u.toString());
+  };
+  if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+    caches.keys().then(keys => Promise.all(keys.map(k => caches.delete(k)))).finally(done);
+  } else {
+    done();
+  }
+}
+
+/* Pull-to-refresh for mobile scroll areas (native browser PTR blocked by app shell) */
+(function initPullToRefresh() {
+  let startY = 0;
+  let pulling = false;
+  let armed = false;
+  let activeEl = null;
+  const THRESHOLD = 72;
+
+  function bar() { return document.getElementById('ptr-bar'); }
+  function setBar(state, text) {
+    const b = bar();
+    if (!b) return;
+    b.classList.remove('show', 'ready', 'loading');
+    if (!state) {
+      b.querySelector('.ptr-text').textContent = 'Tarik untuk refresh';
+      return;
+    }
+    b.classList.add('show');
+    if (state === 'ready') b.classList.add('ready');
+    if (state === 'loading') b.classList.add('loading');
+    if (text) b.querySelector('.ptr-text').textContent = text;
+  }
+
+  function isScrollTop(el) {
+    if (!el) return false;
+    return el.scrollTop <= 0;
+  }
+
+  function findScrollParent(target) {
+    let el = target;
+    while (el && el !== document.body) {
+      if (el.id === 'product-grid' || el.classList?.contains('page-body') || el.id === 'cart-list') {
+        return el;
+      }
+      el = el.parentElement;
+    }
+    // fallback: active view primary scroller
+    const grid = document.getElementById('product-grid');
+    if (grid && document.getElementById('view-pos')?.classList.contains('active')) return grid;
+    const body = document.querySelector('.view.active .page-body, #view-products.active .page-body, #view-stock.active .page-body, #view-reports.active .page-body, #view-settings.active .page-body');
+    return body || grid;
+  }
+
+  document.addEventListener('touchstart', (e) => {
+    if (window.innerWidth > 1024) return;
+    if (document.getElementById('sidebar')?.classList.contains('open')) return;
+    if (document.getElementById('cart-panel')?.classList.contains('open')) return;
+    const t = e.touches[0];
+    activeEl = findScrollParent(e.target);
+    if (!activeEl || !isScrollTop(activeEl)) {
+      pulling = false;
+      return;
+    }
+    startY = t.clientY;
+    pulling = true;
+    armed = false;
+  }, { passive: true });
+
+  document.addEventListener('touchmove', (e) => {
+    if (!pulling || window.innerWidth > 1024) return;
+    const t = e.touches[0];
+    const dy = t.clientY - startY;
+    if (dy < 8 || !isScrollTop(activeEl)) {
+      setBar(null);
+      armed = false;
+      return;
+    }
+    // prevent page bounce only when pulling down at top
+    if (dy > 12 && e.cancelable) e.preventDefault();
+    if (dy >= THRESHOLD) {
+      armed = true;
+      setBar('ready', 'Lepas untuk refresh');
+    } else {
+      armed = false;
+      setBar('show', 'Tarik untuk refresh');
+    }
+  }, { passive: false });
+
+  document.addEventListener('touchend', () => {
+    if (!pulling) return;
+    pulling = false;
+    if (armed) {
+      setBar('loading', 'Memuat ulang…');
+      setTimeout(() => hardRefresh(), 250);
+    } else {
+      setBar(null);
+    }
+    armed = false;
+    activeEl = null;
+  }, { passive: true });
+})();
 
 let db = null;
 let auth = null;
