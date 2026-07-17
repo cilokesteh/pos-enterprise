@@ -1,0 +1,26 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /ent-products/{docId} {
+      allow read, write: if true;
+    }
+    match /ent-transactions/{docId} {
+      allow read, write: if true;
+    }
+    match /ent-users/{docId} {
+      allow read, write: if true;
+    }
+    match /ent-branches/{docId} {
+      allow read, write: if true;
+    }
+    match /ent-audit/{docId} {
+      allow read, write: if true;
+    }
+    match /ent-stock-moves/{docId} {
+      allow read, write: if true;
+    }
+    match /{document=**} {
+      allow read, write: if true;
+    }
+  }
+}
