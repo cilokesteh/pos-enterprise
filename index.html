@@ -198,7 +198,7 @@
     border-radius: var(--pos-radius, 6px);
     background: var(--pos-bg-surface);
   }
-  .table-wrap table { min-width: 640px; width: 100%; border-collapse: collapse; }
+  .table-wrap table { width: 100%; border-collapse: collapse; }
 
   .surface {
     background: var(--pos-bg-surface);
@@ -250,11 +250,111 @@
     border: 1px solid var(--pos-border);
     border-radius: 8px;
     cursor: pointer;
-    min-height: 88px;
+    min-height: 0;
     min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    padding: 0.75rem;
     transition: border-color .15s, background .15s;
   }
   .product-card:hover { border-color: var(--pos-accent); background: var(--pos-bg-hover); }
+  .product-card .pc-name {
+    font-weight: 600;
+    font-size: 0.875rem;
+    line-height: 1.25;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    word-break: break-word;
+  }
+  .product-card .pc-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem;
+    min-width: 0;
+  }
+  .product-card .pc-price {
+    margin-top: auto;
+    font-weight: 700;
+    font-size: 0.9rem;
+    color: var(--pos-accent);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .product-card .pc-stock {
+    font-size: 0.7rem;
+    color: var(--pos-text-tertiary);
+    white-space: nowrap;
+  }
+  .num {
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    text-align: right;
+  }
+  .cell-clip {
+    max-width: 12rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .table-wrap table.data {
+    table-layout: fixed;
+    min-width: 720px;
+    width: 100%;
+  }
+  .table-wrap table.data th,
+  .table-wrap table.data td {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    vertical-align: middle;
+  }
+  /* product table column widths */
+  #product-table-body td:nth-child(1),
+  .table-wrap table.data thead th:nth-child(1) { width: 22%; }
+  #product-table-body td:nth-child(2),
+  .table-wrap table.data thead th:nth-child(2) { width: 12%; }
+  #product-table-body td:nth-child(3),
+  .table-wrap table.data thead th:nth-child(3) { width: 10%; }
+  #product-table-body td:nth-child(4),
+  .table-wrap table.data thead th:nth-child(4) { width: 12%; }
+  #product-table-body td:nth-child(5),
+  .table-wrap table.data thead th:nth-child(5) { width: 14%; text-align: right; }
+  #product-table-body td:nth-child(6),
+  .table-wrap table.data thead th:nth-child(6) { width: 12%; text-align: right; }
+  #product-table-body td:nth-child(7),
+  .table-wrap table.data thead th:nth-child(7) { width: 8%; text-align: center; }
+  #product-table-body td:nth-child(8),
+  .table-wrap table.data thead th:nth-child(8) { width: 10%; white-space: nowrap; }
+  .actions-cell {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 0.25rem;
+    justify-content: flex-end;
+  }
+  .actions-cell .btn-ghost,
+  .actions-cell .btn-danger {
+    min-height: 32px;
+    min-width: 32px;
+    padding: 0.25rem 0.4rem;
+  }
+  .stats-grid .surface {
+    min-width: 0;
+    overflow: hidden;
+  }
+  .stats-grid .surface > div:last-child {
+    font-variant-numeric: tabular-nums;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: clamp(0.85rem, 2.5vw, 1.15rem);
+  }
   .modal-backdrop {
     background: rgba(0,0,0,.85);
     overflow-y: auto;
@@ -463,7 +563,7 @@
           <i class="fa-solid fa-right-from-bracket"></i>
         </button>
       </div>
-      <div class="text-[10px] text-[var(--pos-text-muted)] text-center select-none">v1.4 layout</div>
+      <div class="text-[10px] text-[var(--pos-text-muted)] text-center select-none">v1.5 product-grid</div>
     </div>
   </aside>
 
@@ -564,7 +664,9 @@
             <table class="data w-full">
               <thead>
                 <tr>
-                  <th>Nama</th><th>SKU</th><th>Tipe</th><th>Brand</th><th>Harga Jual</th><th>Modal</th><th>Stok</th><th>Aksi</th>
+                  <th>Nama</th><th>SKU</th><th>Tipe</th><th>Brand</th>
+                  <th class="num">Harga Jual</th><th class="num">Modal</th>
+                  <th style="text-align:center">Stok</th><th style="text-align:right">Aksi</th>
                 </tr>
               </thead>
               <tbody id="product-table-body"></tbody>
@@ -1103,11 +1205,14 @@ function renderProducts(list) {
     return;
   }
   grid.innerHTML = items.map(p => `
-    <div class="product-card p-3" onclick="addToCart('${p.id}')">
-      <div class="font-medium text-sm truncate">${esc(p.name)}</div>
-      <div class="text-[11px] text-[var(--pos-text-muted)] mt-0.5">${esc(p.category||'HP')}${p.brand?' · '+esc(p.brand):''} · Stok <span class="${(p.stock||0)<5?'text-[var(--pos-warning)]':'text-[var(--pos-success)]'}">${p.stock||0}</span></div>
-      ${p.sku ? `<div class="text-[10px] text-[var(--pos-text-muted)] font-mono">${esc(p.sku)}</div>` : ''}
-      <div class="text-accent font-semibold text-sm mt-2">${fmt(p.price)}</div>
+    <div class="product-card" onclick="addToCart('${p.id}')">
+      <div class="pc-name" title="${esc(p.name)}">${esc(p.name)}</div>
+      <div class="pc-meta">
+        <span class="badge ${p.category==='HP'?'badge-ok':'badge-warn'}">${esc(p.category||'HP')}</span>
+        ${p.brand ? `<span class="text-[10px] text-[var(--pos-text-muted)] truncate" style="max-width:6rem">${esc(p.brand)}</span>` : ''}
+        <span class="pc-stock">Stok <b class="${(p.stock||0)<5?'text-[var(--pos-warning)]':'text-[var(--pos-success)]'}">${p.stock||0}</b></span>
+      </div>
+      <div class="pc-price">${fmt(p.price)}</div>
     </div>
   `).join('');
 }
@@ -1290,18 +1395,20 @@ function renderProductTable() {
   if (!tb) return;
   tb.innerHTML = list.map(p => `
     <tr>
-      <td class="text-[var(--pos-text-primary)] font-medium">${esc(p.name)}</td>
-      <td class="font-mono text-xs">${esc(p.sku||'—')}</td>
+      <td class="text-[var(--pos-text-primary)] font-medium cell-clip" title="${esc(p.name)}">${esc(p.name)}</td>
+      <td class="font-mono text-xs cell-clip" title="${esc(p.sku||'')}">${esc(p.sku||'—')}</td>
       <td><span class="badge ${p.category==='HP'?'badge-ok':'badge-warn'}">${esc(p.category||'—')}</span></td>
-      <td>${esc(p.brand||'—')}</td>
-      <td>${fmt(p.price)}</td>
-      <td>${fmt(p.costPrice||0)}</td>
-      <td><span class="badge ${(p.stock||0)<5?'badge-warn':'badge-ok'}">${p.stock||0}</span></td>
-      <td class="space-x-1">
-        <button onclick="showStockModal('in','${p.id}')" class="btn-ghost px-2 py-1 text-xs" title="Stok masuk"><i class="fa-solid fa-arrow-down"></i></button>
-        <button onclick="showStockModal('out','${p.id}')" class="btn-ghost px-2 py-1 text-xs" title="Stok keluar"><i class="fa-solid fa-arrow-up"></i></button>
-        <button onclick="editProductById('${p.id}')" class="btn-ghost px-2 py-1 text-xs"><i class="fa-solid fa-pen"></i></button>
-        <button onclick="deleteProduct('${p.id}')" class="btn-danger px-2 py-1 text-xs"><i class="fa-solid fa-trash"></i></button>
+      <td class="cell-clip" title="${esc(p.brand||'')}">${esc(p.brand||'—')}</td>
+      <td class="num">${fmt(p.price)}</td>
+      <td class="num">${fmt(p.costPrice||0)}</td>
+      <td style="text-align:center"><span class="badge ${(p.stock||0)<5?'badge-warn':'badge-ok'}">${p.stock||0}</span></td>
+      <td>
+        <div class="actions-cell">
+          <button onclick="showStockModal('in','${p.id}')" class="btn-ghost" title="Stok masuk"><i class="fa-solid fa-arrow-down"></i></button>
+          <button onclick="showStockModal('out','${p.id}')" class="btn-ghost" title="Stok keluar"><i class="fa-solid fa-arrow-up"></i></button>
+          <button onclick="editProductById('${p.id}')" class="btn-ghost" title="Edit"><i class="fa-solid fa-pen"></i></button>
+          <button onclick="deleteProduct('${p.id}')" class="btn-danger" title="Hapus"><i class="fa-solid fa-trash"></i></button>
+        </div>
       </td>
     </tr>
   `).join('') || '<tr><td colspan="8" class="text-center py-8 text-[var(--pos-text-muted)]">Belum ada produk</td></tr>';
