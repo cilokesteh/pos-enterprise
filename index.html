@@ -1386,8 +1386,6 @@ let todayStats = { tx: 0, revenue: 0 };
 let _historyTx = [];
 let _currentReportRows = [];
 let _currentReportTitle = 'Laporan';
-let reportPeriod = 'harian';
-let reportAnchor = new Date();
 
 function saveLocalData() {
   try {
@@ -2008,6 +2006,11 @@ async function saveStockMove() {
       if (upd.imeiPool.length===0) upd.hasImei = false;
     }
     if (!isNewProduct) {
+      // existing product: update normally
+      await db.collection(col('products')).doc(p.id).update(upd);
+    } else {
+      // newly created product in this same modal: stock was 0 at add() time,
+      // must apply the restock result (stock + imeiPool) now
       await db.collection(col('products')).doc(p.id).update(upd);
     }
     // Update local stock immediately (don't wait for onSnapshot)
@@ -2232,6 +2235,9 @@ async function finishPayment() {
           });
         }
       }
+      // Persist sale to local history so Riwayat / Laporan / refresh survive
+      pendingTx.id = 'tx' + Date.now() + Math.random().toString(36).slice(2, 7);
+      _historyTx.unshift(pendingTx);
       saveLocalData();
       updateStats();
       renderProducts();
@@ -2632,6 +2638,21 @@ async function loadTransactionsInRange(start, end) {
   const prodCost = {};
   products.forEach(p => { if (p.name) prodCost[p.name] = p.costPrice || 0; });
   window._currentProductCost = prodCost;
+
+  if (!db) {
+    // Demo mode: read from local history
+    const rows = (_historyTx || [])
+      .filter(t => (t.createdAt||0) >= start && (t.createdAt||0) <= end)
+      .sort((a, b) => b.createdAt - a.createdAt)
+      .map(t => {
+        const m = (t.items||[]).reduce((s, it) => {
+          const u = prodCost[it.name] ?? it.costPrice ?? 0;
+          return s + u * (it.qty||0);
+        }, 0);
+        return { ...t, _modal: m, _profit: (t.total||0) - m };
+      });
+    return rows;
+  }
 
   try {
     const snap = await db.collection(col('transactions'))
